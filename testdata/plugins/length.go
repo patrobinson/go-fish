@@ -1,8 +1,12 @@
 package main
 
-type rule string
+type lengthRule string
 
-func (r rule) Process(thing interface{}) bool {
+func init() {
+	Rule = "Length"
+}
+
+func (r lengthRule) Process(thing interface{}) bool {
 	foo, ok := thing.(string)
 	if ok && len(foo) == 1 {
 		return true
@@ -10,13 +14,13 @@ func (r rule) Process(thing interface{}) bool {
 	return false
 }
 
-func (r rule) Start(input chan interface{}, output chan interface{}) {
+func (r lengthRule) Start(input chan interface{}, output chan interface{}) {
 	for str := range input {
 		res := r.Process(str)
 		output <- res
 	}
 }
 
-func (r rule) String() string { return "Length rule" }
+func (r lengthRule) String() string { return string(r) }
 
-var Rule rule
+var Rule lengthRule

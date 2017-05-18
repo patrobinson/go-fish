@@ -1,8 +1,12 @@
 package main
 
-type rule string
+type aRule string
 
-func (r rule) Process(thing interface{}) bool {
+func init() {
+	Rule = "a"
+}
+
+func (r aRule) Process(thing interface{}) bool {
 	foo, ok := thing.(string)
 	if ok && foo == "a" {
 		return true
@@ -10,13 +14,13 @@ func (r rule) Process(thing interface{}) bool {
 	return false
 }
 
-func (r rule) Start(input chan interface{}, output chan interface{}) {
+func (r aRule) Start(input chan interface{}, output chan interface{}) {
 	for str := range input {
 		res := r.Process(str)
 		output <- res
 	}
 }
 
-func (r rule) String() string { return "A rule" }
+func (r aRule) String() string { return string(r) }
 
-var Rule rule
+var Rule aRule
