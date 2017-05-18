@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 go get
 go build -buildmode=plugin -o testdata/plugins/a.so testdata/plugins/a.go
