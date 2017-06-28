@@ -2,43 +2,51 @@ package main
 
 import (
 	"testing"
+	"sync"
+	"fmt"
 )
 
 type testInput struct {
 	value string
 }
 
-func (t testInput) Retrieve(out chan interface{}) {
-	defer close(out)
-	out <- t.value
+func (t testInput) Retrieve(out *chan interface{}) {
+	defer close(*out)
+	*out <- t.value
 }
 
 type testOutput struct {
-	c chan bool
+	c *chan bool
 }
 
-func (t testOutput) Sink(in chan interface{}) {
-	for i := range in {
-		result := i.(bool)
-		t.c <- result
+func (t testOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
+	defer (*wg).Done()
+	for msg := range *in {
+		fmt.Println("Input received")
+		*t.c <- msg.(bool)
 	}
+	fmt.Println("Input closed")
 }
 
 func TestSuccessfulRun(t *testing.T) {
 	output := make(chan bool)
-	o := testOutput{c: output}
+	o := testOutput{c: &output}
 	in := testInput{value: "a"}
-	run("testdata/plugins", in, o)
-	if r1, r2 := <-output, <-output; !r1 && !r2 {
+	go run("testdata/plugins", in, o)
+	r1 := <-output
+	fmt.Print("Received 1 output")
+	r2 := <-output
+	fmt.Print("Received 2 output")
+	if !r1 && !r2 {
 		t.Errorf("Rules did not match %v %v", r1, r2)
 	}
 }
 
 func TestFailRun(t *testing.T) {
 	output := make(chan bool)
-	o := testOutput{c: output}
+	o := testOutput{c: &output}
 	in := testInput {value: "abc"}
-	run("testdata/plugins", in, o)
+	go run("testdata/plugins", in, o)
 	if r1, r2 := <-output, <-output; r1 || r2 {
 		t.Errorf("Rules did not match %v %v", r1, r2)
 	}

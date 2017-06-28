@@ -3,20 +3,22 @@ package output
 import (
 	"os"
 	log "github.com/Sirupsen/logrus"
+	"sync"
 )
 
 type FileOutput struct {
 	FileName string
 }
 
-func (f FileOutput) Sink(input chan interface{}) {
+func (f FileOutput) Sink(input *chan interface{}, wg *sync.WaitGroup) {
+	defer (*wg).Done()
 	file, err := os.Open(f.FileName)
 	if err != nil {
 		log.Fatal("Unable to open file %v: %v", f.FileName, err)
 	}
 	defer file.Close()
 
-	for i := range input {
+	for i := range *input {
 		in := i.(bool)
 		var data []byte
 		if in {
