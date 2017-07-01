@@ -32,7 +32,7 @@ func TestSuccessfulRun(t *testing.T) {
 	output := make(chan bool)
 	o := testOutput{c: &output}
 	in := testInput{value: "a"}
-	go run("testdata/plugins", in, o)
+	go run("testdata/rules", in, o)
 	r1 := <-output
 	fmt.Print("Received 1 output")
 	r2 := <-output
@@ -46,7 +46,7 @@ func TestFailRun(t *testing.T) {
 	output := make(chan bool)
 	o := testOutput{c: &output}
 	in := testInput {value: "abc"}
-	go run("testdata/plugins", in, o)
+	go run("testdata/rules", in, o)
 	if r1, r2 := <-output, <-output; r1 || r2 {
 		t.Errorf("Rules did not match %v %v", r1, r2)
 	}
