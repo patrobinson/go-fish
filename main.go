@@ -18,7 +18,7 @@ type Rule interface {
 }
 
 type Input interface {
-	Retrieve(*chan interface{})
+	Retrieve(*chan []byte)
 }
 
 type Output interface {
@@ -46,7 +46,7 @@ func run(plugin_folder string, in interface{}, out interface{}) {
 	inChan := startInput(in)
 
 	// receive from inputs and send to all rules
-	func(iChan *chan interface{}, ruleChans []*chan interface{}) {
+	func(iChan *chan []byte, ruleChans []*chan interface{}) {
 		for data := range *iChan {
 			for _, i := range ruleChans {
 				*i <- data
@@ -74,8 +74,8 @@ func startOutput(out interface{}, wg *sync.WaitGroup) *chan interface{} {
 	return &outChan
 }
 
-func startInput(in interface{}) *chan interface{} {
-	inChan := make(chan interface{})
+func startInput(in interface{}) *chan []byte {
+	inChan := make(chan []byte)
 	inReceiver := in.(Input)
 	go inReceiver.Retrieve(&inChan)
 	return &inChan

@@ -10,7 +10,7 @@ type FileInput struct {
 	FileName string
 }
 
-func (i FileInput) Retrieve(output *chan interface{}) {
+func (i FileInput) Retrieve(output *chan []byte) {
 	defer close(*output)
 	file, err := os.Open(i.FileName)
 	if err != nil {
@@ -20,7 +20,7 @@ func (i FileInput) Retrieve(output *chan interface{}) {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-      *output <- scanner.Text()
+      *output <- scanner.Bytes()
  	}
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("Unable to read file %v: %v\n", i.FileName, err)

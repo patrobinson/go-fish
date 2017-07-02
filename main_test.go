@@ -10,9 +10,9 @@ type testInput struct {
 	value string
 }
 
-func (t testInput) Retrieve(out *chan interface{}) {
+func (t testInput) Retrieve(out *chan []byte) {
 	defer close(*out)
-	*out <- t.value
+	*out <- []byte(t.value)
 }
 
 type testOutput struct {
