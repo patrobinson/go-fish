@@ -1,13 +1,16 @@
 package main
 
-import "sync"
-import "fmt"
+import (
+	"sync"
+	"fmt"
+	es "github.com/patrobinson/go-fish/testdata/eventStructs"
+)
 
 type aRule string
 
 func (r aRule) Process(thing interface{}) bool {
-	foo, ok := thing.(string)
-	if ok && foo == "a" {
+	foo, ok := thing.(es.ExampleType)
+	if ok && foo.Str == "a" {
 		return true
 	}
 	return false

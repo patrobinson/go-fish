@@ -26,30 +26,39 @@ type Output interface {
 }
 
 func main() {
-	plugin_folder := os.Args[1]
-	inFile := os.Args[2]
-	outFile := os.Args[3]
+	rule_folder := os.Args[1]
+	event_type_folder := os.Args[2]
+	inFile := os.Args[3]
+	outFile := os.Args[4]
 	in := input.FileInput{FileName: inFile}
 	out := output.FileOutput{FileName: outFile}
 
-	run(plugin_folder, in, out)
+	run(rule_folder, event_type_folder, in, out)
 }
 
-func run(plugin_folder string, in interface{}, out interface{}) {
+func run(rules_folder string, event_folder string, in interface{}, out interface{}) {
 	log.SetLevel(log.DebugLevel)
 
 	var outWg sync.WaitGroup
 	var ruleWg sync.WaitGroup
 
 	outChan := startOutput(out, &outWg)
-	rChans := startRules(plugin_folder, outChan, &ruleWg)
+	rChans := startRules(rules_folder, outChan, &ruleWg)
 	inChan := startInput(in)
+	eventTypes, err := getEventTypes(event_folder)
+	if err != nil {
+		log.Fatalf("Failed to get Event plugins: %v", err)
+	}
 
 	// receive from inputs and send to all rules
 	func(iChan *chan []byte, ruleChans []*chan interface{}) {
 		for data := range *iChan {
+			evt, err := matchEventType(eventTypes, data)
+			if err != nil {
+				log.Infof("Error matching event: %v", err)
+			}
 			for _, i := range ruleChans {
-				*i <- data
+				*i <- evt
 			}
 		}
 	}(inChan, rChans)
@@ -81,8 +90,8 @@ func startInput(in interface{}) *chan []byte {
 	return &inChan
 }
 
-func startRules(plugin_folder string, output *chan interface{}, wg *sync.WaitGroup) []*chan interface{} {
-	plugin_glob := path.Join(plugin_folder, "/*.so")
+func startRules(rules_folder string, output *chan interface{}, wg *sync.WaitGroup) []*chan interface{} {
+	plugin_glob := path.Join(rules_folder, "/*.so")
 	plugins, err := filepath.Glob(plugin_glob)
 	if err != nil {
 		log.Fatal(err)
