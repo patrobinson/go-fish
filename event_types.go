@@ -1,32 +1,32 @@
 package main
 
 import (
-	"plugin"
+	"errors"
 	"path"
 	"path/filepath"
+	"plugin"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/patrobinson/go-fish/event"
-	"errors"
 )
 
-
-type EventType interface {
+type eventType interface {
 	Name() string
 	Decode([]byte) (event.Event, error)
 }
 
-func getEventTypes(event_folder string) ([]EventType, error) {
-	var events []EventType
+func getEventTypes(eventFolder string) ([]eventType, error) {
+	var events []eventType
 
-	evt_glob := path.Join(event_folder, "/*.so")
-	evt, err := filepath.Glob(evt_glob)
+	evtGlob := path.Join(eventFolder, "/*.so")
+	evt, err := filepath.Glob(evtGlob)
 	if err != nil {
 		return events, err
 	}
 
 	var plugins []*plugin.Plugin
-	for _, p_file := range evt {
-		if plug, err := plugin.Open(p_file); err == nil {
+	for _, pFile := range evt {
+		if plug, err := plugin.Open(pFile); err == nil {
 			plugins = append(plugins, plug)
 		}
 	}
@@ -37,7 +37,7 @@ func getEventTypes(event_folder string) ([]EventType, error) {
 			log.Errorf("Event Type has no eventType symbol: %v", err)
 			continue
 		}
-		e, ok := symEvt.(EventType)
+		e, ok := symEvt.(eventType)
 		if !ok {
 			log.Errorf("Event Type is not an Event interface type")
 			continue
@@ -49,7 +49,7 @@ func getEventTypes(event_folder string) ([]EventType, error) {
 	return events, nil
 }
 
-func matchEventType(eventTypes []EventType, rawEvt []byte) (event.Event, error) {
+func matchEventType(eventTypes []eventType, rawEvt []byte) (event.Event, error) {
 	var evt event.Event
 	for _, et := range eventTypes {
 		if evt, err := et.Decode(rawEvt); err == nil {
