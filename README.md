@@ -27,7 +27,7 @@ Where `build.sh` does the following:
 ```
 for DIR in "eventTypes rules"; do
     for FILE in $(ls $DIR); do
-        go build -buildmode=plugin -o ${DIR}/${FILE}.so ${DIR}/${FILE}.go
+        go build -buildmode=plugin -o ${DIR}/${FILE%.go}.so ${DIR}/${FILE}
     done
 done
 ```
