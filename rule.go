@@ -11,7 +11,6 @@ import (
 
 // Rule is an interface for rule implementations
 type Rule interface {
-	Start(*chan interface{}, *chan interface{}, *sync.WaitGroup)
 	Process(interface{}) bool
 	String() string
 }
@@ -49,7 +48,13 @@ func startRules(rulesFolder string, output *chan interface{}, wg *sync.WaitGroup
 		inputs = append(inputs, &input)
 		log.Debugf("Starting %v\n", rule.String())
 		(*wg).Add(1)
-		go rule.Start(&input, output, wg)
+		go func(input *chan interface{}, output *chan interface{}, wg *sync.WaitGroup, r Rule) {
+			defer (*wg).Done()
+			for str := range *input {
+				res := r.Process(str)
+				*output <- res
+			}
+		}(&input, output, wg, rule)
 	}
 
 	return inputs
