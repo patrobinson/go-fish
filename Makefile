@@ -10,5 +10,5 @@ build-testdata:
 		GOOS=$(GOOS) go build -buildmode=plugin -o $${FILE%.go}.so $${FILE}	 ;\
 	done
 
-check test tests: build-testdata get
+check test tests: build-testdata
 	@go test -timeout $(TIMEOUT)s
