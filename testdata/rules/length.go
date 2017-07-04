@@ -1,13 +1,16 @@
 package main
 
-import "sync"
-import "fmt"
+import (
+	"sync"
+	"fmt"
+	es "github.com/patrobinson/go-fish/testdata/eventStructs"
+)
 
 type lengthRule string
 
 func (r lengthRule) Process(thing interface{}) bool {
-	foo, ok := thing.(string)
-	if ok && len(foo) == 1 {
+	foo, ok := thing.(es.ExampleType)
+	if ok && len(foo.Str) == 1 {
 		return true
 	}
 	return false
