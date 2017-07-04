@@ -1,9 +1,9 @@
 package main
 
 import (
-	"testing"
-	"sync"
 	"fmt"
+	"sync"
+	"testing"
 )
 
 type testInput struct {
@@ -45,7 +45,7 @@ func TestSuccessfulRun(t *testing.T) {
 func TestFailRun(t *testing.T) {
 	output := make(chan bool)
 	o := testOutput{c: &output}
-	in := testInput {value: "abc"}
+	in := testInput{value: "abc"}
 	go run("testdata/rules", "testdata/eventTypes", in, o)
 	if r1, r2 := <-output, <-output; r1 || r2 {
 		t.Errorf("Rules did not match %v %v", r1, r2)
