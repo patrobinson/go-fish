@@ -41,12 +41,14 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 	var in Input
-	if config.KinesisConfig != nil {
+	if config.Input == "Kinesis" {
 		in = input.KinesisInput{
 			StreamName: (*config.KinesisConfig).StreamName,
 		}
-	} else {
+	} else if config.Input == "File" {
 		in = input.FileInput{FileName: (*config.FileConfig).InputFile}
+	} else {
+		log.Fatalf("Invalid input type: %v", config.Input)
 	}
 	in.Init()
 	out := output.FileOutput{FileName: (*config.FileConfig).OutputFile}
