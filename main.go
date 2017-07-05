@@ -50,7 +50,11 @@ func main() {
 	} else {
 		log.Fatalf("Invalid input type: %v", config.Input)
 	}
-	in.Init()
+
+	err = in.Init()
+	if err != nil {
+		log.Fatalf("Input setup failed: %v", err)
+	}
 	out := output.FileOutput{FileName: (*config.FileConfig).OutputFile}
 
 	run(config.RuleFolder, config.EventTypeFolder, in, out)
