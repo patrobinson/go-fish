@@ -1,14 +1,11 @@
 package main
 
 import (
-	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"plugin"
 	"sync"
-
-	"encoding/json"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/patrobinson/go-fish/input"
@@ -33,23 +30,6 @@ type Output interface {
 	Sink(*chan interface{}, *sync.WaitGroup)
 }
 
-type config struct {
-	Input           string         `json:"input"`
-	KinesisConfig   *kinesisConfig `json:"kinesisConfig,omitempty"`
-	FileConfig      *fileConfig    `json:"fileConfig"`
-	RuleFolder      string
-	EventTypeFolder string
-}
-
-type kinesisConfig struct {
-	StreamName string `json:"streamName"`
-}
-
-type fileConfig struct {
-	InputFile  string `json:"inputFile,omitempty"`
-	OutputFile string `json:"outputFile"`
-}
-
 func main() {
 	configFile := os.Args[1]
 	file, err := os.Open(configFile)
@@ -72,13 +52,6 @@ func main() {
 	out := output.FileOutput{FileName: (*config.FileConfig).OutputFile}
 
 	run(config.RuleFolder, config.EventTypeFolder, in, out)
-}
-
-func parseConfig(configFile io.Reader) (config, error) {
-	var config config
-	jsonParser := json.NewDecoder(configFile)
-	err := jsonParser.Decode(&config)
-	return config, err
 }
 
 func run(rulesFolder string, eventFolder string, in interface{}, out interface{}) {
