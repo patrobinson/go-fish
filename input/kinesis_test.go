@@ -14,7 +14,7 @@ func setupInput(mockClient kinesisiface.KinesisAPI) *KinesisInput {
 	return &KinesisInput{
 		outputChan: &outChan,
 		shardMgmt:  &mgmtChan,
-		streamName: "testStream",
+		StreamName: "testStream",
 		kinesisSvc: mockClient,
 		shardIds: map[string]shardStatus{
 			"00000001": shardStatus{

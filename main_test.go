@@ -10,6 +10,10 @@ type testInput struct {
 	value string
 }
 
+func (t testInput) Init() error {
+	return nil
+}
+
 func (t testInput) Retrieve(out *chan []byte) {
 	defer close(*out)
 	*out <- []byte(t.value)

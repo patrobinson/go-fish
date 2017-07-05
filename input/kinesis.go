@@ -16,7 +16,7 @@ type KinesisInput struct {
 	outputChan *chan []byte
 	shardIds   map[string]shardStatus
 	shardMgmt  *chan shardChange
-	streamName string
+	StreamName string
 	kinesisSvc kinesisiface.KinesisAPI
 }
 
@@ -31,14 +31,13 @@ type shardChange struct {
 }
 
 // Init implements intialises the Input mechanism
-func (ki *KinesisInput) Init(streamName string) error {
-	ki.streamName = streamName
+func (ki KinesisInput) Init() error {
 	session, err := session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable})
 	if err != nil {
 		return err
 	}
 	kinesisSvc := kinesis.New(session)
-	shardIds, err := getShardIds(kinesisSvc, streamName, "")
+	shardIds, err := getShardIds(kinesisSvc, ki.StreamName, "")
 	ki.shardIds = shardIds
 
 	shardChan := make(chan shardChange)
@@ -101,7 +100,7 @@ func (ki *KinesisInput) getRecords(shardID string, output *chan []byte) {
 	shardIterArgs := &kinesis.GetShardIteratorInput{
 		ShardId:           aws.String(shardID),
 		ShardIteratorType: aws.String("TRIM_HORIZON"),
-		StreamName:        aws.String(ki.streamName),
+		StreamName:        aws.String(ki.StreamName),
 	}
 	iterResp, err := svc.GetShardIterator(shardIterArgs)
 	if err != nil {
@@ -135,7 +134,7 @@ func (ki *KinesisInput) getRecords(shardID string, output *chan []byte) {
 }
 
 // Retrieve implements the Input interface, it starts the Kinesis Client Library processing
-func (ki *KinesisInput) Retrieve(output *chan []byte) {
+func (ki KinesisInput) Retrieve(output *chan []byte) {
 	ki.outputChan = output
 	for _, s := range ki.shardIds {
 		go ki.getRecords(s.shardID, output)

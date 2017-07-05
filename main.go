@@ -1,11 +1,14 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"plugin"
 	"sync"
+
+	"encoding/json"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/patrobinson/go-fish/input"
@@ -22,6 +25,7 @@ type Rule interface {
 // Input is an interface for input implemenations
 type Input interface {
 	Retrieve(*chan []byte)
+	Init() error
 }
 
 // Output is an interface for output implementations
@@ -29,15 +33,52 @@ type Output interface {
 	Sink(*chan interface{}, *sync.WaitGroup)
 }
 
-func main() {
-	ruleFolder := os.Args[1]
-	eventTypeFolder := os.Args[2]
-	inFile := os.Args[3]
-	outFile := os.Args[4]
-	in := input.FileInput{FileName: inFile}
-	out := output.FileOutput{FileName: outFile}
+type config struct {
+	Input           string         `json:"input"`
+	KinesisConfig   *kinesisConfig `json:"kinesisConfig,omitempty"`
+	FileConfig      *fileConfig    `json:"fileConfig"`
+	RuleFolder      string
+	EventTypeFolder string
+}
 
-	run(ruleFolder, eventTypeFolder, in, out)
+type kinesisConfig struct {
+	StreamName string `json:"streamName"`
+}
+
+type fileConfig struct {
+	InputFile  string `json:"inputFile,omitempty"`
+	OutputFile string `json:"outputFile"`
+}
+
+func main() {
+	configFile := os.Args[1]
+	file, err := os.Open(configFile)
+	if err != nil {
+		log.Fatalf("Failed to open Config File: %v", err)
+	}
+	config, err := parseConfig(file)
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+	var in Input
+	if config.KinesisConfig != nil {
+		in = input.KinesisInput{
+			StreamName: (*config.KinesisConfig).StreamName,
+		}
+	} else {
+		in = input.FileInput{FileName: (*config.FileConfig).InputFile}
+	}
+	in.Init()
+	out := output.FileOutput{FileName: (*config.FileConfig).OutputFile}
+
+	run(config.RuleFolder, config.EventTypeFolder, in, out)
+}
+
+func parseConfig(configFile io.Reader) (config, error) {
+	var config config
+	jsonParser := json.NewDecoder(configFile)
+	err := jsonParser.Decode(&config)
+	return config, err
 }
 
 func run(rulesFolder string, eventFolder string, in interface{}, out interface{}) {
