@@ -11,11 +11,11 @@ type FileInput struct {
 	FileName string
 }
 
-func (i FileInput) Init() error {
+func (i *FileInput) Init() error {
 	return nil
 }
 
-func (i FileInput) Retrieve(output *chan []byte) {
+func (i *FileInput) Retrieve(output *chan []byte) {
 	defer close(*output)
 	file, err := os.Open(i.FileName)
 	if err != nil {

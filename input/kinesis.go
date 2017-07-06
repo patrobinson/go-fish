@@ -31,7 +31,7 @@ type shardChange struct {
 }
 
 // Init implements intialises the Input mechanism
-func (ki KinesisInput) Init() error {
+func (ki *KinesisInput) Init() error {
 	session, err := session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable})
 	if err != nil {
 		return err
@@ -134,7 +134,7 @@ func (ki *KinesisInput) getRecords(shardID string, output *chan []byte) {
 }
 
 // Retrieve implements the Input interface, it starts the Kinesis Client Library processing
-func (ki KinesisInput) Retrieve(output *chan []byte) {
+func (ki *KinesisInput) Retrieve(output *chan []byte) {
 	ki.outputChan = output
 	for _, s := range ki.shardIds {
 		go ki.getRecords(s.shardID, output)

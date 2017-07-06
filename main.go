@@ -40,35 +40,37 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
-	var in Input
+
+	var in interface{}
 	if config.Input == "Kinesis" {
-		in = input.KinesisInput{
+		in = &input.KinesisInput{
 			StreamName: (*config.KinesisConfig).StreamName,
 		}
 	} else if config.Input == "File" {
-		in = input.FileInput{FileName: (*config.FileConfig).InputFile}
+		in = &input.FileInput{FileName: (*config.FileConfig).InputFile}
 	} else {
 		log.Fatalf("Invalid input type: %v", config.Input)
 	}
 
-	err = in.Init()
-	if err != nil {
-		log.Fatalf("Input setup failed: %v", err)
-	}
-	out := output.FileOutput{FileName: (*config.FileConfig).OutputFile}
+	out := &output.FileOutput{FileName: (*config.FileConfig).OutputFile}
 
 	run(config.RuleFolder, config.EventTypeFolder, in, out)
 }
 
 func run(rulesFolder string, eventFolder string, in interface{}, out interface{}) {
-	log.SetLevel(log.DebugLevel)
+	input := in.(Input)
+	output := out.(Output)
 
+	err := input.Init()
+	if err != nil {
+		log.Fatalf("Input setup failed: %v", err)
+	}
 	var outWg sync.WaitGroup
 	var ruleWg sync.WaitGroup
 
-	outChan := startOutput(out, &outWg)
+	outChan := startOutput(&output, &outWg)
 	rChans := startRules(rulesFolder, outChan, &ruleWg)
-	inChan := startInput(in)
+	inChan := startInput(&input)
 	eventTypes, err := getEventTypes(eventFolder)
 	if err != nil {
 		log.Fatalf("Failed to get Event plugins: %v", err)
@@ -99,18 +101,16 @@ func run(rulesFolder string, eventFolder string, in interface{}, out interface{}
 	outWg.Wait()
 }
 
-func startOutput(out interface{}, wg *sync.WaitGroup) *chan interface{} {
+func startOutput(out *Output, wg *sync.WaitGroup) *chan interface{} {
 	(*wg).Add(1)
 	outChan := make(chan interface{})
-	outSender := out.(Output)
-	go outSender.Sink(&outChan, wg)
+	go (*out).Sink(&outChan, wg)
 	return &outChan
 }
 
-func startInput(in interface{}) *chan []byte {
+func startInput(in *Input) *chan []byte {
 	inChan := make(chan []byte)
-	inReceiver := in.(Input)
-	go inReceiver.Retrieve(&inChan)
+	go (*in).Retrieve(&inChan)
 	return &inChan
 }
 
