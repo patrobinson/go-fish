@@ -36,8 +36,8 @@ func (ki *KinesisInput) Init() error {
 	if err != nil {
 		return err
 	}
-	kinesisSvc := kinesis.New(session)
-	shardIds, err := getShardIds(kinesisSvc, ki.StreamName, "")
+	ki.kinesisSvc = kinesis.New(session)
+	shardIds, err := getShardIds(ki.kinesisSvc, ki.StreamName, "")
 	ki.shardIds = shardIds
 
 	shardChan := make(chan shardChange)
