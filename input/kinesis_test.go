@@ -6,8 +6,10 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/patrobinson/go-fish/input/kinesisStateStore"
 )
 
 func setupInput(mockClient kinesisiface.KinesisAPI) *KinesisInput {
@@ -131,11 +133,9 @@ func TestMarshalShardStatus(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unable to Marshal shard status: %v", err)
 	}
-	expect := &dynamodb.AttributeValue{
-		M: map[string]*dynamodb.AttributeValue{
-			"ShardID":    {S: aws.String("00000001")},
-			"Checkpoint": {S: aws.String("0123456789ABCDEF")},
-		},
+	expect := map[string]*dynamodb.AttributeValue{
+		"ShardID":    {S: aws.String("00000001")},
+		"Checkpoint": {S: aws.String("0123456789ABCDEF")},
 	}
 	if !reflect.DeepEqual(expect, shardSItem) {
 		t.Errorf("Expected %v, got %v", expect, shardSItem)
@@ -143,11 +143,9 @@ func TestMarshalShardStatus(t *testing.T) {
 }
 
 func TestUnmarshalShardStatus(t *testing.T) {
-	ms := &dynamodb.AttributeValue{
-		M: map[string]*dynamodb.AttributeValue{
-			"ShardID":    {S: aws.String("00000001")},
-			"Checkpoint": {S: aws.String("0123456789ABCDEF")},
-		},
+	ms := map[string]*dynamodb.AttributeValue{
+		"ShardID":    {S: aws.String("00000001")},
+		"Checkpoint": {S: aws.String("0123456789ABCDEF")},
 	}
 
 	expect := &shardStatus{
@@ -162,5 +160,52 @@ func TestUnmarshalShardStatus(t *testing.T) {
 
 	if !reflect.DeepEqual(expect, ss) {
 		t.Errorf("Expected %v, got %v", expect, ss)
+	}
+}
+
+type mockDynamoClientSave struct {
+	dynamodbiface.DynamoDBAPI
+	items map[string]string
+}
+
+func (m *mockDynamoClientSave) PutItem(params *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
+	shardID := params.Item["ShardID"].S
+	checkpoint := params.Item["Checkpoint"].S
+	m.items[*shardID] = *checkpoint
+	return &dynamodb.PutItemOutput{}, nil
+}
+
+func (m *mockDynamoClientSave) GetItem(params *dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error) {
+	shardID := params.Key["ShardID"].S
+	checkpoint := m.items[*shardID]
+	result := &dynamodb.GetItemOutput{
+		Item: map[string]*dynamodb.AttributeValue{
+			"ShardID":    {S: shardID},
+			"Checkpoint": {S: &checkpoint},
+		},
+	}
+	return result, nil
+}
+
+func TestSaveItem(t *testing.T) {
+	ss := shardStatus{
+		ShardID:    "0000",
+		Checkpoint: "11111",
+	}
+	ms, _ := ss.Marshal()
+	svc := &mockDynamoClientSave{
+		items: make(map[string]string),
+	}
+
+	err := kinesisStateStore.SaveItem(ms, svc)
+	if err != nil {
+		t.Errorf("SaveItem() error = %v", err)
+	}
+
+	savedStatus, _ := kinesisStateStore.GetItem("0000", svc)
+	storedStatus, _ := unmarshalShardStatus(savedStatus)
+
+	if !reflect.DeepEqual(storedStatus, ss) {
+		t.Errorf("Expected %v, got %v", ss, storedStatus)
 	}
 }

@@ -148,8 +148,8 @@ func (ki *KinesisInput) Retrieve(output *chan []byte) {
 	}
 }
 
-func (ss *shardStatus) Marshal() (*dynamodb.AttributeValue, error) {
-	ms, err := dynamodbattribute.Marshal(ss)
+func (ss *shardStatus) Marshal() (map[string]*dynamodb.AttributeValue, error) {
+	ms, err := dynamodbattribute.MarshalMap(ss)
 	return ms, err
 }
 
@@ -161,8 +161,8 @@ func (ss *shardStatus) Save() error {
 	return kinesisStateStore.SaveItem(ms, dynamosvc)
 }
 
-func unmarshalShardStatus(ms *dynamodb.AttributeValue) (*shardStatus, error) {
-	var ss *shardStatus
-	err := dynamodbattribute.Unmarshal(ms, &ss)
+func unmarshalShardStatus(ms map[string]*dynamodb.AttributeValue) (shardStatus, error) {
+	var ss shardStatus
+	err := dynamodbattribute.UnmarshalMap(ms, &ss)
 	return ss, err
 }
