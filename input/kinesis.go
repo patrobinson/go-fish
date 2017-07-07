@@ -36,6 +36,8 @@ type shardChange struct {
 
 var dynamosvc dynamodbiface.DynamoDBAPI
 
+const tableName = "GoFish"
+
 // Init implements intialises the Input mechanism
 func (ki *KinesisInput) Init() error {
 	session, err := session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable})
@@ -43,9 +45,13 @@ func (ki *KinesisInput) Init() error {
 		return err
 	}
 	ki.kinesisSvc = kinesis.New(session)
-	dynamosvc = dynamodb.New(session)
 	shardIds, err := getShardIds(ki.kinesisSvc, ki.StreamName, "")
 	ki.shardIds = shardIds
+
+	dynamosvc = dynamodb.New(session)
+	if !kinesisStateStore.DoesTableExist(tableName, dynamosvc) {
+		kinesisStateStore.CreateTable(tableName, dynamosvc)
+	}
 
 	shardChan := make(chan shardChange)
 	ki.shardMgmt = &shardChan

@@ -148,7 +148,7 @@ func TestUnmarshalShardStatus(t *testing.T) {
 		"Checkpoint": {S: aws.String("0123456789ABCDEF")},
 	}
 
-	expect := &shardStatus{
+	expect := shardStatus{
 		ShardID:    "00000001",
 		Checkpoint: "0123456789ABCDEF",
 	}

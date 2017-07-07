@@ -1,18 +1,44 @@
 package kinesisStateStore
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
-const tableName = "GoFish"
+var tableName string
 
-func createTable(tableName string) error {
-	return nil
+func CreateTable(tName string, svc dynamodbiface.DynamoDBAPI) error {
+	tableName = tName
+	input := &dynamodb.CreateTableInput{
+		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+			{
+				AttributeName: aws.String("ShardID"),
+				AttributeType: aws.String("S"),
+			},
+		},
+		KeySchema: []*dynamodb.KeySchemaElement{
+			{
+				AttributeName: aws.String("ShardID"),
+				KeyType:       aws.String("S"),
+			},
+		},
+		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
+			ReadCapacityUnits:  aws.Int64(1),
+			WriteCapacityUnits: aws.Int64(1),
+		},
+		TableName: aws.String(tableName),
+	}
+	_, err := svc.CreateTable(input)
+	return err
 }
 
-func doesTableExist(tableName string) bool {
-	return false
+func DoesTableExist(tableName string, svc dynamodbiface.DynamoDBAPI) bool {
+	input := &dynamodb.DescribeTableInput{
+		TableName: aws.String(tableName),
+	}
+	_, err := svc.DescribeTable(input)
+	return (err == nil)
 }
 
 // SaveItem saves a dynamo attribute value to the predefined table
