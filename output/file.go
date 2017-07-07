@@ -2,17 +2,19 @@ package output
 
 import (
 	"os"
-	log "github.com/Sirupsen/logrus"
 	"sync"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type FileOutput struct {
 	FileName string
 }
 
-func (f FileOutput) Sink(input *chan interface{}, wg *sync.WaitGroup) {
+func (f *FileOutput) Sink(input *chan interface{}, wg *sync.WaitGroup) {
+	log.Debugf("Writing to file %v", f.FileName)
 	defer (*wg).Done()
-	file, err := os.Open(f.FileName)
+	file, err := os.OpenFile(f.FileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		log.Fatal("Unable to open file %v: %v", f.FileName, err)
 	}

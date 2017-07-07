@@ -3,6 +3,7 @@ package input
 import (
 	"bufio"
 	"os"
+
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -10,7 +11,11 @@ type FileInput struct {
 	FileName string
 }
 
-func (i FileInput) Retrieve(output *chan []byte) {
+func (i *FileInput) Init() error {
+	return nil
+}
+
+func (i *FileInput) Retrieve(output *chan []byte) {
 	defer close(*output)
 	file, err := os.Open(i.FileName)
 	if err != nil {
@@ -20,8 +25,8 @@ func (i FileInput) Retrieve(output *chan []byte) {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-      *output <- scanner.Bytes()
- 	}
+		*output <- scanner.Bytes()
+	}
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("Unable to read file %v: %v\n", i.FileName, err)
 	}

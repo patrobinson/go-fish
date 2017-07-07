@@ -11,4 +11,4 @@ build-testdata:
 	done
 
 check test tests: build-testdata
-	@go test -timeout $(TIMEOUT)s
+	@go test -timeout $(TIMEOUT)s ./...
