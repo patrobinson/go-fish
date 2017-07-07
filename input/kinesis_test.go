@@ -1,9 +1,11 @@
 package input
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 )
@@ -18,7 +20,7 @@ func setupInput(mockClient kinesisiface.KinesisAPI) *KinesisInput {
 		kinesisSvc: mockClient,
 		shardIds: map[string]shardStatus{
 			"00000001": shardStatus{
-				shardID: "00000001",
+				ShardID: "00000001",
 			},
 		},
 	}
@@ -112,10 +114,53 @@ func TestGetShardIds(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error getting Shards: %v", err)
 	}
-	if v, ok := shards["00000001"]; !ok || v.shardID != "00000001" {
+	if v, ok := shards["00000001"]; !ok || v.ShardID != "00000001" {
 		t.Errorf("Invalid Shard ID returned")
 	}
 	if len(shards) != 1 {
 		t.Errorf("Too many shards")
+	}
+}
+
+func TestMarshalShardStatus(t *testing.T) {
+	shardS := &shardStatus{
+		ShardID:    "00000001",
+		Checkpoint: "0123456789ABCDEF",
+	}
+	shardSItem, err := shardS.Marshal()
+	if err != nil {
+		t.Errorf("Unable to Marshal shard status: %v", err)
+	}
+	expect := &dynamodb.AttributeValue{
+		M: map[string]*dynamodb.AttributeValue{
+			"ShardID":    {S: aws.String("00000001")},
+			"Checkpoint": {S: aws.String("0123456789ABCDEF")},
+		},
+	}
+	if !reflect.DeepEqual(expect, shardSItem) {
+		t.Errorf("Expected %v, got %v", expect, shardSItem)
+	}
+}
+
+func TestUnmarshalShardStatus(t *testing.T) {
+	ms := &dynamodb.AttributeValue{
+		M: map[string]*dynamodb.AttributeValue{
+			"ShardID":    {S: aws.String("00000001")},
+			"Checkpoint": {S: aws.String("0123456789ABCDEF")},
+		},
+	}
+
+	expect := &shardStatus{
+		ShardID:    "00000001",
+		Checkpoint: "0123456789ABCDEF",
+	}
+
+	ss, err := unmarshalShardStatus(ms)
+	if err != nil {
+		t.Errorf("Uname to Unmarshal shard status: %v", err)
+	}
+
+	if !reflect.DeepEqual(expect, ss) {
+		t.Errorf("Expected %v, got %v", expect, ss)
 	}
 }
