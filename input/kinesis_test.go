@@ -12,10 +12,22 @@ import (
 	"github.com/patrobinson/go-fish/input/kinesisStateStore"
 )
 
+type mockDynamoClient struct {
+	dynamodbiface.DynamoDBAPI
+}
+
+func (m *mockDynamoClient) DescribeTable(*dynamodb.DescribeTableInput) (*dynamodb.DescribeTableOutput, error) {
+	return &dynamodb.DescribeTableOutput{}, nil
+}
+
+func (m *mockDynamoClient) PutItem(*dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
+	return &dynamodb.PutItemOutput{}, nil
+}
+
 func setupInput(mockClient kinesisiface.KinesisAPI) *KinesisInput {
 	outChan := make(chan []byte)
 	mgmtChan := make(chan shardChange)
-	return &KinesisInput{
+	kInput := &KinesisInput{
 		outputChan: &outChan,
 		shardMgmt:  &mgmtChan,
 		StreamName: "testStream",
@@ -26,6 +38,10 @@ func setupInput(mockClient kinesisiface.KinesisAPI) *KinesisInput {
 			},
 		},
 	}
+	setDynamoSvc(&mockDynamoClient{})
+	kInput.setupDynamo()
+	kInput.setupKinesis()
+	return kInput
 }
 
 type mockKClientGet struct {
@@ -35,6 +51,20 @@ type mockKClientGet struct {
 func (k *mockKClientGet) GetShardIterator(args *kinesis.GetShardIteratorInput) (*kinesis.GetShardIteratorOutput, error) {
 	return &kinesis.GetShardIteratorOutput{
 		ShardIterator: aws.String("0123456789ABCDEF"),
+	}, nil
+}
+
+func (k *mockKClientGet) DescribeStream(args *kinesis.DescribeStreamInput) (*kinesis.DescribeStreamOutput, error) {
+	return &kinesis.DescribeStreamOutput{
+		StreamDescription: &kinesis.StreamDescription{
+			StreamStatus: aws.String("ACTIVE"),
+			Shards: []*kinesis.Shard{
+				&kinesis.Shard{
+					ShardId: aws.String("00000001"),
+				},
+			},
+			HasMoreShards: aws.Bool(false),
+		},
 	}, nil
 }
 
@@ -81,10 +111,23 @@ func (k *mockKClientClosedShard) GetRecords(args *kinesis.GetRecordsInput) (*kin
 	}, nil
 }
 
+func (k *mockKClientClosedShard) DescribeStream(args *kinesis.DescribeStreamInput) (*kinesis.DescribeStreamOutput, error) {
+	return &kinesis.DescribeStreamOutput{
+		StreamDescription: &kinesis.StreamDescription{
+			StreamStatus: aws.String("ACTIVE"),
+			Shards: []*kinesis.Shard{
+				&kinesis.Shard{
+					ShardId: aws.String("00000001"),
+				},
+			},
+			HasMoreShards: aws.Bool(false),
+		},
+	}, nil
+}
+
 func TestShardClosed(t *testing.T) {
 	input := setupInput(&mockKClientClosedShard{})
 	inputC := make(chan []byte)
-	go input.shardIDManager()
 	go input.Retrieve(&inputC)
 	m := <-inputC
 	if _, ok := input.shardIds["00000001"]; ok {

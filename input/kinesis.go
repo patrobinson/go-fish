@@ -30,13 +30,17 @@ type shardStatus struct {
 }
 
 type shardChange struct {
-	shardID string
-	action  string
+	shard  shardStatus
+	action string
 }
 
 var dynamosvc dynamodbiface.DynamoDBAPI
 
 const tableName = "GoFish"
+
+func setDynamoSvc(svc dynamodbiface.DynamoDBAPI) {
+	dynamosvc = svc
+}
 
 // Init implements intialises the Input mechanism
 func (ki *KinesisInput) Init() error {
@@ -45,18 +49,29 @@ func (ki *KinesisInput) Init() error {
 		return err
 	}
 	ki.kinesisSvc = kinesis.New(session)
-	shardIds, err := getShardIds(ki.kinesisSvc, ki.StreamName, "")
-	ki.shardIds = shardIds
+	setDynamoSvc(dynamodb.New(session))
+	ki.setupDynamo()
+	err = ki.setupKinesis()
+	return err
+}
 
-	dynamosvc = dynamodb.New(session)
+func (ki *KinesisInput) setupDynamo() {
 	if !kinesisStateStore.DoesTableExist(tableName, dynamosvc) {
 		kinesisStateStore.CreateTable(tableName, dynamosvc)
 	}
+}
+
+func (ki *KinesisInput) setupKinesis() error {
+	shardIds, err := getShardIds(ki.kinesisSvc, ki.StreamName, "")
+	if err != nil {
+		return err
+	}
+	ki.shardIds = shardIds
 
 	shardChan := make(chan shardChange)
 	ki.shardMgmt = &shardChan
 	go ki.shardIDManager()
-	return err
+	return nil
 }
 
 func getShardIds(svc kinesisiface.KinesisAPI, streamName string, startShardID string) (map[string]shardStatus, error) {
@@ -98,10 +113,16 @@ func (ki *KinesisInput) shardIDManager() {
 	for {
 		select {
 		case shardChange := <-*ki.shardMgmt:
-			if shardChange.action != "DELETE" {
+			switch shardChange.action {
+			case "DELETE":
+				delete(ki.shardIds, shardChange.shard.ShardID)
+			case "SAVE":
+				if err := shardChange.shard.Save(); err != nil {
+					log.Errorf("Error saving Shard Status: %v", err)
+				}
+			default:
 				log.Errorf("Invalid action received to shardID Manager: %v", shardChange.action)
 			}
-			delete(ki.shardIds, shardChange.shardID)
 		default:
 			time.Sleep(1000 * time.Millisecond)
 		}
@@ -133,11 +154,19 @@ func (ki *KinesisInput) getRecords(shardID string, output *chan []byte) {
 		}
 		if getResp.NextShardIterator == nil {
 			*ki.shardMgmt <- shardChange{
-				shardID: shardID,
-				action:  "DELETE",
+				shard: shardStatus{
+					ShardID: shardID,
+				},
+				action: "DELETE",
 			}
 		} else {
 			shard.Checkpoint = *getResp.NextShardIterator
+			*ki.shardMgmt <- shardChange{
+				shard: shardStatus{
+					ShardID: shardID,
+				},
+				action: "SAVE",
+			}
 		}
 
 		for i := range getResp.Records {
