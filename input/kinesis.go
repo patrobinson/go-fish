@@ -7,8 +7,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/patrobinson/go-fish/input/kinesisStateStore"
 )
 
 // KinesisInput implements the Input interface
@@ -21,13 +25,21 @@ type KinesisInput struct {
 }
 
 type shardStatus struct {
-	shardID    string
-	checkpoint string
+	ShardID    string
+	Checkpoint string
 }
 
 type shardChange struct {
-	shardID string
-	action  string
+	shard  shardStatus
+	action string
+}
+
+var dynamosvc dynamodbiface.DynamoDBAPI
+
+const tableName = "GoFish"
+
+func setDynamoSvc(svc dynamodbiface.DynamoDBAPI) {
+	dynamosvc = svc
 }
 
 // Init implements intialises the Input mechanism
@@ -37,21 +49,37 @@ func (ki *KinesisInput) Init() error {
 		return err
 	}
 	ki.kinesisSvc = kinesis.New(session)
-	shardIds, err := getShardIds(ki.kinesisSvc, ki.StreamName, "")
+	setDynamoSvc(dynamodb.New(session))
+	ki.setupDynamo()
+	err = ki.setupKinesis()
+	return err
+}
+
+func (ki *KinesisInput) setupDynamo() {
+	if !kinesisStateStore.DoesTableExist(tableName, dynamosvc) {
+		kinesisStateStore.CreateTable(tableName, dynamosvc)
+	}
+}
+
+func (ki *KinesisInput) setupKinesis() error {
+	shardIds, err := getShardIds(ki.kinesisSvc, dynamosvc, ki.StreamName, "")
+	if err != nil {
+		return err
+	}
 	ki.shardIds = shardIds
 
 	shardChan := make(chan shardChange)
 	ki.shardMgmt = &shardChan
 	go ki.shardIDManager()
-	return err
+	return nil
 }
 
-func getShardIds(svc kinesisiface.KinesisAPI, streamName string, startShardID string) (map[string]shardStatus, error) {
+func getShardIds(kinesisSvc kinesisiface.KinesisAPI, dynamoSvc dynamodbiface.DynamoDBAPI, streamName string, startShardID string) (map[string]shardStatus, error) {
 	shards := map[string]shardStatus{}
 	args := &kinesis.DescribeStreamInput{
 		StreamName: aws.String(streamName),
 	}
-	streamDesc, err := svc.DescribeStream(args)
+	streamDesc, err := kinesisSvc.DescribeStream(args)
 	if err != nil {
 		return shards, err
 	}
@@ -62,14 +90,27 @@ func getShardIds(svc kinesisiface.KinesisAPI, streamName string, startShardID st
 
 	var lastShardID string
 	for _, s := range streamDesc.StreamDescription.Shards {
-		shards[*s.ShardId] = shardStatus{
-			shardID: *s.ShardId,
+		/* Retrieve shard checkpoint from DynamoDB */
+		checkpoint, err := kinesisStateStore.GetItem(*s.ShardId, dynamoSvc)
+		if err != nil {
+			return shards, err
+		}
+		if _, ok := checkpoint["ShardID"]; ok {
+			shards[*s.ShardId], err = unmarshalShardStatus(checkpoint)
+			if err != nil {
+				log.Errorf("Unable to unmarshal shard checkpoint %v", err)
+				return shards, err
+			}
+		} else {
+			shards[*s.ShardId] = shardStatus{
+				ShardID: *s.ShardId,
+			}
 		}
 		lastShardID = *s.ShardId
 	}
 
 	if *streamDesc.StreamDescription.HasMoreShards {
-		moreShards, err := getShardIds(svc, streamName, lastShardID)
+		moreShards, err := getShardIds(kinesisSvc, dynamoSvc, streamName, lastShardID)
 		if err != nil {
 			return shards, err
 		}
@@ -85,10 +126,16 @@ func (ki *KinesisInput) shardIDManager() {
 	for {
 		select {
 		case shardChange := <-*ki.shardMgmt:
-			if shardChange.action != "DELETE" {
+			switch shardChange.action {
+			case "DELETE":
+				delete(ki.shardIds, shardChange.shard.ShardID)
+			case "SAVE":
+				if err := shardChange.shard.Save(); err != nil {
+					log.Errorf("Error saving Shard Status: %v", err)
+				}
+			default:
 				log.Errorf("Invalid action received to shardID Manager: %v", shardChange.action)
 			}
-			delete(ki.shardIds, shardChange.shardID)
 		default:
 			time.Sleep(1000 * time.Millisecond)
 		}
@@ -107,11 +154,11 @@ func (ki *KinesisInput) getRecords(shardID string, output *chan []byte) {
 		log.Fatalf("Unable to retrieve records: %v", err)
 	}
 	shard := ki.shardIds[shardID]
-	shard.checkpoint = *iterResp.ShardIterator
+	shard.Checkpoint = *iterResp.ShardIterator
 
 	for {
 		getRecordsArgs := &kinesis.GetRecordsInput{
-			ShardIterator: aws.String(shard.checkpoint),
+			ShardIterator: aws.String(shard.Checkpoint),
 		}
 		getResp, err := svc.GetRecords(getRecordsArgs)
 		if err != nil {
@@ -119,24 +166,53 @@ func (ki *KinesisInput) getRecords(shardID string, output *chan []byte) {
 			continue
 		}
 		if getResp.NextShardIterator == nil {
-			*ki.shardMgmt <- shardChange{
-				shardID: shardID,
-				action:  "DELETE",
+			sChange := shardChange{
+				shard: shardStatus{
+					ShardID: shardID,
+				},
+				action: "DELETE",
 			}
+			*ki.shardMgmt <- sChange
 		} else {
-			shard.checkpoint = *getResp.NextShardIterator
+			shard.Checkpoint = *getResp.NextShardIterator
 		}
 
 		for i := range getResp.Records {
 			*ki.outputChan <- getResp.Records[i].Data
 		}
+
+		*ki.shardMgmt <- shardChange{
+			shard: shardStatus{
+				ShardID: shardID,
+			},
+			action: "SAVE",
+		}
 	}
 }
 
-// Retrieve implements the Input interface, it starts the Kinesis Client Library processing
+// Retrieve implements the Input interface
 func (ki *KinesisInput) Retrieve(output *chan []byte) {
 	ki.outputChan = output
 	for _, s := range ki.shardIds {
-		go ki.getRecords(s.shardID, output)
+		go ki.getRecords(s.ShardID, output)
 	}
+}
+
+func (ss *shardStatus) Marshal() (map[string]*dynamodb.AttributeValue, error) {
+	ms, err := dynamodbattribute.MarshalMap(ss)
+	return ms, err
+}
+
+func (ss *shardStatus) Save() error {
+	ms, err := ss.Marshal()
+	if err != nil {
+		return err
+	}
+	return kinesisStateStore.SaveItem(ms, dynamosvc)
+}
+
+func unmarshalShardStatus(ms map[string]*dynamodb.AttributeValue) (shardStatus, error) {
+	var ss shardStatus
+	err := dynamodbattribute.UnmarshalMap(ms, &ss)
+	return ss, err
 }
