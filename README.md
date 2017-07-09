@@ -72,7 +72,6 @@ It implements the Rule interface.
 
 ```
 type Rule interface {
-	Start(*chan interface{}, *chan interface{}, *sync.WaitGroup)
 	Process(interface{}) bool
 	String() string
 }
