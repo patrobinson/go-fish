@@ -62,7 +62,7 @@ func (ki *KinesisInput) setupDynamo() {
 }
 
 func (ki *KinesisInput) setupKinesis() error {
-	shardIds, err := getShardIds(ki.kinesisSvc, ki.StreamName, "")
+	shardIds, err := getShardIds(ki.kinesisSvc, dynamosvc, ki.StreamName, "")
 	if err != nil {
 		return err
 	}
@@ -74,12 +74,12 @@ func (ki *KinesisInput) setupKinesis() error {
 	return nil
 }
 
-func getShardIds(svc kinesisiface.KinesisAPI, streamName string, startShardID string) (map[string]shardStatus, error) {
+func getShardIds(kinesisSvc kinesisiface.KinesisAPI, dynamoSvc dynamodbiface.DynamoDBAPI, streamName string, startShardID string) (map[string]shardStatus, error) {
 	shards := map[string]shardStatus{}
 	args := &kinesis.DescribeStreamInput{
 		StreamName: aws.String(streamName),
 	}
-	streamDesc, err := svc.DescribeStream(args)
+	streamDesc, err := kinesisSvc.DescribeStream(args)
 	if err != nil {
 		return shards, err
 	}
@@ -90,14 +90,27 @@ func getShardIds(svc kinesisiface.KinesisAPI, streamName string, startShardID st
 
 	var lastShardID string
 	for _, s := range streamDesc.StreamDescription.Shards {
-		shards[*s.ShardId] = shardStatus{
-			ShardID: *s.ShardId,
+		/* Retrieve shard checkpoint from DynamoDB */
+		checkpoint, err := kinesisStateStore.GetItem(*s.ShardId, dynamoSvc)
+		if err != nil {
+			return shards, err
+		}
+		if _, ok := checkpoint["ShardID"]; ok {
+			shards[*s.ShardId], err = unmarshalShardStatus(checkpoint)
+			if err != nil {
+				log.Errorf("Unable to unmarshal shard checkpoint %v", err)
+				return shards, err
+			}
+		} else {
+			shards[*s.ShardId] = shardStatus{
+				ShardID: *s.ShardId,
+			}
 		}
 		lastShardID = *s.ShardId
 	}
 
 	if *streamDesc.StreamDescription.HasMoreShards {
-		moreShards, err := getShardIds(svc, streamName, lastShardID)
+		moreShards, err := getShardIds(kinesisSvc, dynamoSvc, streamName, lastShardID)
 		if err != nil {
 			return shards, err
 		}
@@ -153,12 +166,13 @@ func (ki *KinesisInput) getRecords(shardID string, output *chan []byte) {
 			continue
 		}
 		if getResp.NextShardIterator == nil {
-			*ki.shardMgmt <- shardChange{
+			sChange := shardChange{
 				shard: shardStatus{
 					ShardID: shardID,
 				},
 				action: "DELETE",
 			}
+			*ki.shardMgmt <- sChange
 		} else {
 			shard.Checkpoint = *getResp.NextShardIterator
 			*ki.shardMgmt <- shardChange{

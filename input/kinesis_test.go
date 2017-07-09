@@ -24,6 +24,10 @@ func (m *mockDynamoClient) PutItem(*dynamodb.PutItemInput) (*dynamodb.PutItemOut
 	return &dynamodb.PutItemOutput{}, nil
 }
 
+func (m *mockDynamoClient) GetItem(*dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error) {
+	return &dynamodb.GetItemOutput{}, nil
+}
+
 func setupInput(mockClient kinesisiface.KinesisAPI) *KinesisInput {
 	outChan := make(chan []byte)
 	mgmtChan := make(chan shardChange)
@@ -153,9 +157,30 @@ func (k *mockKClientGetShards) DescribeStream(args *kinesis.DescribeStreamInput)
 	}, nil
 }
 
+type mockDynamoClienGet struct {
+	dynamodbiface.DynamoDBAPI
+	items map[string]string
+}
+
+func (m *mockDynamoClienGet) GetItem(params *dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error) {
+	shardID := params.Key["ShardID"].S
+	checkpoint := m.items[*shardID]
+	result := &dynamodb.GetItemOutput{
+		Item: map[string]*dynamodb.AttributeValue{
+			"ShardID":    {S: shardID},
+			"Checkpoint": {S: &checkpoint},
+		},
+	}
+	return result, nil
+}
+
 func TestGetShardIds(t *testing.T) {
-	client := &mockKClientGetShards{}
-	shards, err := getShardIds(client, "testStream", "")
+	kinesisClient := &mockKClientGetShards{}
+	dynamodbClient := &mockDynamoClienGet{
+		items: map[string]string{},
+	}
+
+	shards, err := getShardIds(kinesisClient, dynamodbClient, "testStream", "")
 	if err != nil {
 		t.Errorf("Error getting Shards: %v", err)
 	}
@@ -164,6 +189,20 @@ func TestGetShardIds(t *testing.T) {
 	}
 	if len(shards) != 1 {
 		t.Errorf("Too many shards")
+	}
+
+	dynamodbClient = &mockDynamoClienGet{
+		items: map[string]string{
+			"00000001": "0123456789ABCDEF",
+		},
+	}
+
+	shards, err = getShardIds(kinesisClient, dynamodbClient, "testStream", "")
+	if err != nil {
+		t.Errorf("Error getting Shards: %v", err)
+	}
+	if v, ok := shards["00000001"]; !ok || v.Checkpoint != "0123456789ABCDEF" {
+		t.Errorf("Checkpoint not restored from saved point")
 	}
 }
 
