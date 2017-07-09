@@ -175,16 +175,17 @@ func (ki *KinesisInput) getRecords(shardID string, output *chan []byte) {
 			*ki.shardMgmt <- sChange
 		} else {
 			shard.Checkpoint = *getResp.NextShardIterator
-			*ki.shardMgmt <- shardChange{
-				shard: shardStatus{
-					ShardID: shardID,
-				},
-				action: "SAVE",
-			}
 		}
 
 		for i := range getResp.Records {
 			*ki.outputChan <- getResp.Records[i].Data
+		}
+
+		*ki.shardMgmt <- shardChange{
+			shard: shardStatus{
+				ShardID: shardID,
+			},
+			action: "SAVE",
 		}
 	}
 }
