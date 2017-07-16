@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type testInput struct {
@@ -26,10 +28,10 @@ type testOutput struct {
 func (t *testOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
 	defer (*wg).Done()
 	for msg := range *in {
-		fmt.Println("Input received")
+		log.Info("Input received")
 		*t.c <- msg.(bool)
 	}
-	fmt.Println("Input closed")
+	log.Info("Input closed")
 }
 
 func TestSuccessfulRun(t *testing.T) {
@@ -54,4 +56,22 @@ func TestFailRun(t *testing.T) {
 	if r1, r2 := <-output, <-output; r1 || r2 {
 		t.Errorf("Rules did not match %v %v", r1, r2)
 	}
+}
+
+func BenchmarkRun(b *testing.B) {
+	log.SetLevel(log.WarnLevel)
+	output := make(chan bool)
+	out := &testOutput{c: &output}
+	var r1 bool
+	var r2 bool
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		in := &testInput{value: string(n)}
+		go run("testdata/rules", "testdata/eventTypes", in, out)
+		r1 = <-output
+		r2 = <-output
+	}
+	result := r1 || r2
+	fmt.Printf("%v\n", result)
+
 }
