@@ -58,20 +58,39 @@ func TestFailRun(t *testing.T) {
 	}
 }
 
+type benchmarkInput struct {
+	input *chan []byte
+}
+
+func (t benchmarkInput) Init() error {
+	return nil
+}
+
+func (t *benchmarkInput) Retrieve(out *chan []byte) {
+	defer close(*out)
+	for in := range *t.input {
+		*out <- in
+	}
+}
+
 func BenchmarkRun(b *testing.B) {
 	log.SetLevel(log.WarnLevel)
 	output := make(chan bool)
 	out := &testOutput{c: &output}
+
+	input := make(chan []byte)
+	in := &benchmarkInput{input: &input}
 	var r1 bool
 	var r2 bool
 	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		in := &testInput{value: string(n)}
-		go run("testdata/rules", "testdata/eventTypes", in, out)
+	go run("testdata/rules", "testdata/eventTypes", in, out)
+	for i := 0; i < b.N; i++ {
+		bs := make([]byte, 1)
+		bs[0] = byte(i)
+		input <- bs
 		r1 = <-output
 		r2 = <-output
 	}
-	result := r1 || r2
-	fmt.Printf("%v\n", result)
-
+	r := r1 || r2
+	fmt.Printf("%v\n", r)
 }
