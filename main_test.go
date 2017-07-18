@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type testInput struct {
@@ -26,10 +28,10 @@ type testOutput struct {
 func (t *testOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
 	defer (*wg).Done()
 	for msg := range *in {
-		fmt.Println("Input received")
+		log.Info("Input received")
 		*t.c <- msg.(bool)
 	}
-	fmt.Println("Input closed")
+	log.Info("Input closed")
 }
 
 func TestSuccessfulRun(t *testing.T) {
@@ -54,4 +56,41 @@ func TestFailRun(t *testing.T) {
 	if r1, r2 := <-output, <-output; r1 || r2 {
 		t.Errorf("Rules did not match %v %v", r1, r2)
 	}
+}
+
+type benchmarkInput struct {
+	input *chan []byte
+}
+
+func (t benchmarkInput) Init() error {
+	return nil
+}
+
+func (t *benchmarkInput) Retrieve(out *chan []byte) {
+	defer close(*out)
+	for in := range *t.input {
+		*out <- in
+	}
+}
+
+func BenchmarkRun(b *testing.B) {
+	log.SetLevel(log.WarnLevel)
+	output := make(chan bool)
+	out := &testOutput{c: &output}
+
+	input := make(chan []byte)
+	in := &benchmarkInput{input: &input}
+	var r1 bool
+	var r2 bool
+	b.ResetTimer()
+	go run("testdata/rules", "testdata/eventTypes", in, out)
+	for i := 0; i < b.N; i++ {
+		bs := make([]byte, 1)
+		bs[0] = byte(i)
+		input <- bs
+		r1 = <-output
+		r2 = <-output
+	}
+	r := r1 || r2
+	fmt.Printf("%v\n", r)
 }
