@@ -6,7 +6,7 @@ import (
 
 type aRule string
 
-func (r aRule) Process(thing interface{}) bool {
+func (r aRule) Process(thing interface{}) interface{} {
 	foo, ok := thing.(es.ExampleType)
 	if ok && foo.Str == "a" {
 		return true

@@ -6,7 +6,7 @@ import (
 
 type lengthRule string
 
-func (r lengthRule) Process(thing interface{}) bool {
+func (r lengthRule) Process(thing interface{}) interface{} {
 	foo, ok := thing.(es.ExampleType)
 	if ok && len(foo.Str) == 1 {
 		return true

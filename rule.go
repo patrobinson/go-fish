@@ -11,7 +11,7 @@ import (
 
 // Rule is an interface for rule implementations
 type Rule interface {
-	Process(interface{}) bool
+	Process(interface{}) interface{}
 	String() string
 }
 
