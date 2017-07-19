@@ -6,7 +6,9 @@ import (
 
 type aRule string
 
-func (r aRule) Process(thing interface{}) interface{} {
+func (r *aRule) Init() {}
+
+func (r *aRule) Process(thing interface{}) interface{} {
 	foo, ok := thing.(es.ExampleType)
 	if ok && foo.Str == "a" {
 		return true
@@ -14,6 +16,6 @@ func (r aRule) Process(thing interface{}) interface{} {
 	return false
 }
 
-func (r aRule) String() string { return string(r) }
+func (r *aRule) String() string { return string(*r) }
 
 var Rule aRule
