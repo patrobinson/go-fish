@@ -1,0 +1,27 @@
+package state
+
+import (
+	"os"
+	"testing"
+)
+
+func TestKVStore(t *testing.T) {
+	kv := KVStore{
+		DbFileName: "test.db",
+		BucketName: "Test",
+	}
+	kv.Init()
+	defer kv.Close()
+
+	err := kv.Set([]byte("foo"), []byte("bar"))
+	if err != nil {
+		t.Error("Counter not incremented")
+	}
+
+	value := kv.Get([]byte("foo"))
+	if string(value) != "bar" {
+		t.Errorf("Expected value at foo to be bar, go %v", value)
+	}
+
+	os.Remove("test.db")
+}
