@@ -187,3 +187,28 @@ func (t *testStatefulOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
 	}
 	log.Info("Input closed")
 }
+
+func BenchmarkRunStateful(b *testing.B) {
+	log.SetLevel(log.WarnLevel)
+	outChan := make(chan interface{})
+	out := &testStatefulOutput{c: &outChan}
+	inChan := make(chan []byte)
+	in := &benchmarkInput{input: &inChan}
+	go run("testdata/statefulIntegrationTests/rules", "testdata/statefulIntegrationTests/eventTypes", in, out)
+
+	b.ResetTimer()
+	go run("testdata/rules", "testdata/eventTypes", in, out)
+	var r1 interface{}
+	var r2 interface{}
+	for i := 0; i < b.N; i++ {
+		assumeRoleEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/assumeRoleEvent.json")
+		inChan <- assumeRoleEvent
+		r1 = <-outChan
+
+		createUserEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/createUserEvent.json")
+		inChan <- createUserEvent
+		r2 = <-outChan
+	}
+	fmt.Printf("Received 1 output %v\n", r1)
+	fmt.Printf("Received 2 output %v\n", r2)
+}
