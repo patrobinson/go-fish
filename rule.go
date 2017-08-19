@@ -28,6 +28,8 @@ func startRules(rulesFolder string, output *chan interface{}, wg *sync.WaitGroup
 	for _, pFile := range plugins {
 		if plug, err := plugin.Open(pFile); err == nil {
 			rules = append(rules, plug)
+		} else {
+			log.Errorf("Unable to load Plugin %v: %v", pFile, err)
 		}
 	}
 
