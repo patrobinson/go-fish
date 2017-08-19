@@ -102,6 +102,9 @@ func BenchmarkRun(b *testing.B) {
 // +build integration
 
 func TestStateIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	expectedEvent := output.OutputEvent{
 		Source:    "CloudTrail",
 		EventTime: time.Date(2016, 11, 14, 17, 25, 45, 0, &time.Location{}).UTC(),

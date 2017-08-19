@@ -11,7 +11,7 @@ build-testdata:
 	done
 
 check test tests: get build-testdata
-	@go test -timeout $(TIMEOUT)s ./...
+	@go test -short -timeout $(TIMEOUT)s ./...
 
 integration: get
 	GOOS=$(GOOS) go build -buildmode=plugin -o testdata/statefulIntegrationTests/rules/cloudTrail.so testdata/statefulIntegrationTests/rules/cloudTrail.go
