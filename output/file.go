@@ -1,6 +1,7 @@
 package output
 
 import (
+	"encoding/json"
 	"os"
 	"sync"
 
@@ -21,14 +22,9 @@ func (f *FileOutput) Sink(input *chan interface{}, wg *sync.WaitGroup) {
 	defer file.Close()
 
 	for i := range *input {
-		in := i.(bool)
-		var data []byte
-		if in {
-			data = []byte("true\n")
-		} else {
-			data = []byte("false\n")
-		}
-		_, err := file.Write(data)
+		data := i.(*OutputEvent)
+		rawData, _ := json.Marshal(data)
+		_, err := file.Write(rawData)
 		if err != nil {
 			log.Fatalf("Unable to write to file %v: %v\n", f.FileName, err)
 		}
