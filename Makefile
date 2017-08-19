@@ -10,5 +10,10 @@ build-testdata:
 		GOOS=$(GOOS) go build -buildmode=plugin -o $${FILE%.go}.so $${FILE}	 ;\
 	done
 
-check test tests: build-testdata
+check test tests: get build-testdata
 	@go test -timeout $(TIMEOUT)s ./...
+
+integration: get
+	GOOS=$(GOOS) go build -buildmode=plugin -o testdata/statefulIntegrationTests/rules/cloudTrail.so testdata/statefulIntegrationTests/rules/cloudTrail.go
+	GOOS=$(GOOS) go build -buildmode=plugin -o testdata/statefulIntegrationTests/eventTypes/cloudTrail.so testdata/statefulIntegrationTests/eventTypes/cloudTrail.go
+	go test -timeout 30s -run Integration

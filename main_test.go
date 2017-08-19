@@ -2,10 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/patrobinson/go-fish/output"
 )
 
 type testInput struct {
@@ -93,4 +97,90 @@ func BenchmarkRun(b *testing.B) {
 	}
 	r := r1 || r2
 	fmt.Printf("%v\n", r)
+}
+
+// +build integration
+
+func TestStateIntegration(t *testing.T) {
+	expectedEvent := output.OutputEvent{
+		Source:    "CloudTrail",
+		EventTime: time.Date(2016, 11, 14, 17, 25, 45, 0, &time.Location{}).UTC(),
+		EventType: "UserCreated",
+		Name:      "IAMUserCreated",
+		Level:     output.WarnLevel,
+		EventId:   "dEXAMPLE-265a-41e0-9352-4401bEXAMPLE",
+		Entity:    "user/Bob",
+		SourceIP:  "192.0.2.1",
+		Body: map[string]interface{}{
+			"AccountID":   "777788889999",
+			"UserCreated": "god_user",
+		},
+	}
+
+	outChan := make(chan interface{})
+	out := &testStatefulOutput{c: &outChan}
+	inChan := make(chan []byte)
+	in := &testStatefulInput{
+		channel: &inChan,
+		inputs:  2,
+	}
+	go run("testdata/statefulIntegrationTests/rules", "testdata/statefulIntegrationTests/eventTypes", in, out)
+
+	assumeRoleEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/assumeRoleEvent.json")
+	inChan <- assumeRoleEvent
+
+	r1 := <-outChan
+	fmt.Print("Received 1 output\n")
+
+	createUserEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/createUserEvent.json")
+	inChan <- createUserEvent
+
+	r2 := <-outChan
+	fmt.Print("Received 2 output\n")
+	if !r1.(bool) {
+		t.Errorf("Rules did not match %v", r1)
+	}
+	if !reflect.DeepEqual(r2.(output.OutputEvent), expectedEvent) {
+		t.Errorf("Expected %v\nGot %v\n", expectedEvent, r2)
+		event := r2.(output.OutputEvent)
+		fmt.Printf("Source: %v\n", event.Source == expectedEvent.Source)
+		fmt.Printf("EventTime: %v\n", event.EventTime == expectedEvent.EventTime)
+		fmt.Printf("EventType: %v\n", event.EventType == expectedEvent.EventType)
+		fmt.Printf("Name: %v\n", event.Name == expectedEvent.Name)
+		fmt.Printf("Level: %v\n", event.Level == expectedEvent.Level)
+		fmt.Printf("EventId: %v\n", event.EventId == expectedEvent.EventId)
+		fmt.Printf("Entity: %v\n", event.Entity == expectedEvent.Entity)
+		fmt.Printf("SourceIP: %v\n", event.EventId == expectedEvent.SourceIP)
+		fmt.Printf("Body: %v\n", reflect.DeepEqual(event.Body, expectedEvent.Body))
+	}
+}
+
+type testStatefulInput struct {
+	channel *chan []byte
+	inputs  int
+}
+
+func (t testStatefulInput) Init() error {
+	return nil
+}
+
+func (t *testStatefulInput) Retrieve(out *chan []byte) {
+	defer close(*out)
+	for i := 0; i < t.inputs; i++ {
+		output := <-*t.channel
+		*out <- output
+	}
+}
+
+type testStatefulOutput struct {
+	c *chan interface{}
+}
+
+func (t *testStatefulOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
+	defer (*wg).Done()
+	for msg := range *in {
+		log.Info("Input received")
+		*t.c <- msg
+	}
+	log.Info("Input closed")
 }
