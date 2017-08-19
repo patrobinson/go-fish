@@ -14,6 +14,7 @@ check test tests: get build-testdata
 	@go test -short -timeout $(TIMEOUT)s ./...
 
 integration: get
+	cd testdata/statefulIntegrationTests/rules && go get || true
 	GOOS=$(GOOS) go build -buildmode=plugin -o testdata/statefulIntegrationTests/rules/cloudTrail.so testdata/statefulIntegrationTests/rules/cloudTrail.go
 	GOOS=$(GOOS) go build -buildmode=plugin -o testdata/statefulIntegrationTests/eventTypes/cloudTrail.so testdata/statefulIntegrationTests/eventTypes/cloudTrail.go
 	go test -timeout 30s -run Integration
