@@ -43,7 +43,19 @@ func main() {
 		log.Fatalf("Invalid input type: %v", config.Input)
 	}
 
-	out := &output.FileOutput{FileName: (*config.FileConfig).OutputFile}
+	var out interface{}
+	if config.Output == "SQS" {
+		out = &output.SQSOutput{
+			QueueUrl: config.SqsConfig.QueueUrl,
+			Region:   config.SqsConfig.Region,
+		}
+	} else if config.Output == "File" {
+		out = &output.FileOutput{
+			FileName: (*config.FileConfig).OutputFile,
+		}
+	} else {
+		log.Fatalf("Invalid output type: %v", config.Output)
+	}
 
 	run(config.RuleFolder, config.EventTypeFolder, in, out)
 }
