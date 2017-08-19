@@ -4,4 +4,4 @@ go:
   - 1.8
 
 install: make get
-script: make test
+script: make test integration

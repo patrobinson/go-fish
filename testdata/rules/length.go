@@ -6,7 +6,9 @@ import (
 
 type lengthRule string
 
-func (r lengthRule) Process(thing interface{}) bool {
+func (r *lengthRule) Init() {}
+
+func (r *lengthRule) Process(thing interface{}) interface{} {
 	foo, ok := thing.(es.ExampleType)
 	if ok && len(foo.Str) == 1 {
 		return true
@@ -14,6 +16,8 @@ func (r lengthRule) Process(thing interface{}) bool {
 	return false
 }
 
-func (r lengthRule) String() string { return string(r) }
+func (r *lengthRule) String() string { return string(*r) }
+
+func (r *lengthRule) Close() {}
 
 var Rule lengthRule
