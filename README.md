@@ -1,10 +1,15 @@
 # Go Fish
 
-Go Fish is a rules engine built in Golang. It provides the capability to write rules in Go as Go Plugins, which are dynamically linked at runtime.
+Go Fish is a stream processor built in Golang. It provides the capability to write rules in Go as Go Plugins, which are dynamically linked at runtime.
+
+Go Fish seeks to implement similar functionality to Apache Samza, without tight coupling to Kafka or YARN. Currently it implements reading streams, writing output events and state management. Future versions may include Checkpointing, Windowing, Metrics and a cluster implementation to co-ordinate message routing between nodes.
+
+
+*Development Status*: Ready for alpha testing
 
 ## Bare minimum
 
-The bare minimum to have a working example requires you to create a Rule, an Event Type.
+The bare minimum to have a working example requires you to create a Rule and an Event Type.
 These must be compiled as plugins and the path to the compiled plugins supplied as an argument to go-fish.
 
 To avoid duplication, the event struct can be extracted to a seperate file, as the struct is required by both the Rule and Event Type.
