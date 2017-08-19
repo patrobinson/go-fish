@@ -18,4 +18,6 @@ func (r *aRule) Process(thing interface{}) interface{} {
 
 func (r *aRule) String() string { return string(*r) }
 
+func (r *aRule) Close() {}
+
 var Rule aRule

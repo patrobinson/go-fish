@@ -18,4 +18,6 @@ func (r *lengthRule) Process(thing interface{}) interface{} {
 
 func (r *lengthRule) String() string { return string(*r) }
 
+func (r *lengthRule) Close() {}
+
 var Rule lengthRule
