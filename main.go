@@ -18,6 +18,7 @@ type Input interface {
 // Output is an interface for output implementations
 type Output interface {
 	Sink(*chan interface{}, *sync.WaitGroup)
+	Init() error
 }
 
 func main() {
@@ -51,10 +52,6 @@ func run(rulesFolder string, eventFolder string, in interface{}, out interface{}
 	input := in.(Input)
 	output := out.(Output)
 
-	err := input.Init()
-	if err != nil {
-		log.Fatalf("Input setup failed: %v", err)
-	}
 	var outWg sync.WaitGroup
 	var ruleWg sync.WaitGroup
 
@@ -92,6 +89,10 @@ func run(rulesFolder string, eventFolder string, in interface{}, out interface{}
 }
 
 func startOutput(out *Output, wg *sync.WaitGroup) *chan interface{} {
+	err := (*out).Init()
+	if err != nil {
+		log.Fatalf("Input setup failed: %v", err)
+	}
 	(*wg).Add(1)
 	outChan := make(chan interface{})
 	go (*out).Sink(&outChan, wg)
@@ -99,6 +100,10 @@ func startOutput(out *Output, wg *sync.WaitGroup) *chan interface{} {
 }
 
 func startInput(in *Input) *chan []byte {
+	err := (*in).Init()
+	if err != nil {
+		log.Fatalf("Input setup failed: %v", err)
+	}
 	inChan := make(chan []byte)
 	go (*in).Retrieve(&inChan)
 	return &inChan

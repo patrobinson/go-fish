@@ -29,6 +29,10 @@ type testOutput struct {
 	c *chan bool
 }
 
+func (t testOutput) Init() error {
+	return nil
+}
+
 func (t *testOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
 	defer (*wg).Done()
 	for msg := range *in {
@@ -177,6 +181,10 @@ func (t *testStatefulInput) Retrieve(out *chan []byte) {
 
 type testStatefulOutput struct {
 	c *chan interface{}
+}
+
+func (t testStatefulOutput) Init() error {
+	return nil
 }
 
 func (t *testStatefulOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
