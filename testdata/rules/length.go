@@ -1,12 +1,13 @@
 package main
 
 import (
+	"github.com/patrobinson/go-fish/ruleHelpers"
 	es "github.com/patrobinson/go-fish/testdata/eventStructs"
 )
 
-type lengthRule string
-
-func (r *lengthRule) Init() {}
+type lengthRule struct {
+	rule_helpers.BasicRule
+}
 
 func (r *lengthRule) Process(thing interface{}) interface{} {
 	foo, ok := thing.(es.ExampleType)
@@ -16,8 +17,6 @@ func (r *lengthRule) Process(thing interface{}) interface{} {
 	return false
 }
 
-func (r *lengthRule) String() string { return string(*r) }
-
-func (r *lengthRule) Close() {}
+func (r *lengthRule) String() string { return "lengthRule" }
 
 var Rule lengthRule
