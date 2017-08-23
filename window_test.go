@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -44,15 +43,10 @@ func TestWindowManager(t *testing.T) {
 	}
 
 	manager.windowRunner(config)
-	foo := <-outChan
 	time.Sleep(1 * time.Second)
 	manager.windowRunner(config)
-	foo = <-outChan
 	time.Sleep(1 * time.Second)
 	manager.windowRunner(config)
-	foo = <-outChan
-
-	fmt.Printf("%v", foo)
 
 	if testRule.windowCounter != 3 {
 		t.Errorf("Expected Window() to be called 3 times, called %d times", testRule.windowCounter)
