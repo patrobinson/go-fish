@@ -7,10 +7,17 @@ import (
 
 type config struct {
 	Input           string         `json:"input"`
+	KafkaConfig     *kafkaConfig   `json:"kafkaConfig,omitempty"`
 	KinesisConfig   *kinesisConfig `json:"kinesisConfig,omitempty"`
 	FileConfig      *fileConfig    `json:"fileConfig"`
 	RuleFolder      string
 	EventTypeFolder string
+}
+
+type kafkaConfig struct {
+	Broker     string `json:"broker"`
+	Topic      string `json:"topic"`
+	Partitions int32  `json:"partitions"`
 }
 
 type kinesisConfig struct {

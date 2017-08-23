@@ -36,6 +36,12 @@ func main() {
 		in = &input.KinesisInput{
 			StreamName: (*config.KinesisConfig).StreamName,
 		}
+	} else if config.Input == "Kafka" {
+		in = &input.KafkaInput{
+			Broker:     (*config.KafkaConfig).Broker,
+			Topic:      (*config.KafkaConfig).Topic,
+			Partitions: (*config.KafkaConfig).Partitions,
+		}
 	} else if config.Input == "File" {
 		in = &input.FileInput{FileName: (*config.FileConfig).InputFile}
 	} else {
