@@ -22,6 +22,12 @@ func (rule *cloudTrailRule) Init() {
 	rule.kvStore.Init()
 }
 
+func (rule *cloudTrailRule) Window() ([]output.OutputEvent, error) {
+	return []output.OutputEvent{}, nil
+}
+
+func (rule *cloudTrailRule) WindowInterval() int { return 0 }
+
 func (rule *cloudTrailRule) Process(evt interface{}) interface{} {
 	cloudTrailEvent, ok := evt.(es.CloudTrail)
 	if !ok {
@@ -76,6 +82,7 @@ func (rule *cloudTrailRule) processCreateUserEvent(evt es.CloudTrail) output.Out
 			"AccountID":   evt.RecipientAccountID,
 			"UserCreated": evt.RequestParameters["userName"],
 		},
+		Occurrences: 1,
 	}
 }
 

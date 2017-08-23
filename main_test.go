@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"reflect"
 	"sync"
 	"testing"
@@ -101,7 +102,7 @@ func BenchmarkRun(b *testing.B) {
 
 // +build integration
 
-func TestStateIntegration(t *testing.T) {
+func TestStreamToStreamStateIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -118,6 +119,7 @@ func TestStateIntegration(t *testing.T) {
 			"AccountID":   "777788889999",
 			"UserCreated": "god_user",
 		},
+		Occurrences: 1,
 	}
 
 	outChan := make(chan interface{})
@@ -127,7 +129,7 @@ func TestStateIntegration(t *testing.T) {
 		channel: &inChan,
 		inputs:  2,
 	}
-	go run("testdata/statefulIntegrationTests/rules", "testdata/statefulIntegrationTests/eventTypes", in, out)
+	go run("testdata/statefulIntegrationTests/s2s_rules", "testdata/statefulIntegrationTests/eventTypes", in, out)
 
 	assumeRoleEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/assumeRoleEvent.json")
 	inChan <- assumeRoleEvent
@@ -156,6 +158,8 @@ func TestStateIntegration(t *testing.T) {
 		fmt.Printf("SourceIP: %v\n", event.EventId == expectedEvent.SourceIP)
 		fmt.Printf("Body: %v\n", reflect.DeepEqual(event.Body, expectedEvent.Body))
 	}
+
+	os.Remove("assumeRoleEnrichment")
 }
 
 type testStatefulInput struct {
@@ -186,4 +190,61 @@ func (t *testStatefulOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
 		*t.c <- msg
 	}
 	log.Info("Input closed")
+}
+
+func TestAggregateStateIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+	expectedEvent := output.OutputEvent{
+		Source:    "CloudTrail",
+		EventTime: time.Date(2016, 11, 14, 17, 25, 45, 0, &time.Location{}).UTC(),
+		EventType: "NoMFA",
+		Name:      "NoMFA",
+		Level:     output.WarnLevel,
+		EventId:   "dEXAMPLE-265a-41e0-9352-4401bEXAMPLE",
+		Entity:    "role/AssumeNothing",
+		SourceIP:  "192.0.2.1",
+		Body: map[string]interface{}{
+			"AccountID": "777788889999",
+		},
+		Occurrences: 3,
+	}
+
+	outChan := make(chan interface{})
+	outProcessor := &testStatefulOutput{c: &outChan}
+	inChan := make(chan []byte)
+	in := &testStatefulInput{
+		channel: &inChan,
+		inputs:  4,
+	}
+	go run("testdata/statefulIntegrationTests/agg_rules", "testdata/statefulIntegrationTests/eventTypes", in, outProcessor)
+
+	createUserEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/createUserEvent.json")
+	inChan <- createUserEvent
+	out := <-outChan
+
+	inChan <- createUserEvent
+	out = <-outChan
+
+	inChan <- createUserEvent
+	out = <-outChan
+
+	out = <-outChan
+
+	if !reflect.DeepEqual(out.(output.OutputEvent), expectedEvent) {
+		t.Errorf("Expected %v\nGot %v\n", expectedEvent, out)
+		event := out.(output.OutputEvent)
+		fmt.Printf("Source: %v\n", event.Source == expectedEvent.Source)
+		fmt.Printf("EventTime: %v\n", event.EventTime == expectedEvent.EventTime)
+		fmt.Printf("EventType: %v\n", event.EventType == expectedEvent.EventType)
+		fmt.Printf("Name: %v\n", event.Name == expectedEvent.Name)
+		fmt.Printf("Level: %v\n", event.Level == expectedEvent.Level)
+		fmt.Printf("EventId: %v\n", event.EventId == expectedEvent.EventId)
+		fmt.Printf("Entity: %v\n", event.Entity == expectedEvent.Entity)
+		fmt.Printf("SourceIP: %v\n", event.EventId == expectedEvent.SourceIP)
+		fmt.Printf("Body: %v\n", reflect.DeepEqual(event.Body, expectedEvent.Body))
+	}
+
+	os.Remove("aggregateEvent")
 }

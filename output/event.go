@@ -7,15 +7,16 @@ import (
 )
 
 type OutputEvent struct {
-	Source    string
-	EventTime time.Time
-	EventType string
-	Name      string
-	Level     Level
-	EventId   string
-	Entity    string
-	SourceIP  string
-	Body      map[string]interface{}
+	Source      string
+	EventTime   time.Time
+	EventType   string
+	Name        string
+	Level       Level
+	EventId     string
+	Entity      string
+	SourceIP    string
+	Body        map[string]interface{}
+	Occurrences int
 }
 
 type Level int
