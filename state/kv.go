@@ -55,3 +55,12 @@ func (k *KVStore) Get(key []byte) []byte {
 
 	return value
 }
+
+// ForEach executes the function for each key/value pair
+func (k *KVStore) ForEach(function func(k, v []byte) error) error {
+	return k.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(k.BucketName))
+
+		return b.ForEach(function)
+	})
+}
