@@ -19,10 +19,10 @@ func (k *KafkaInput) Init() error {
 	if err != nil {
 		log.Errorf("Unable to open Consumer: %v", err)
 	}
-	for i := int32(0); i <= k.Partitions; i++ {
+	for i := int32(0); i < k.Partitions; i++ {
 		partitionConsumer, err := k.consumer.ConsumePartition(k.Topic, i, sarama.OffsetNewest)
 		if err != nil {
-			log.Errorf("Unable to create partition consumer: %v", err)
+			log.Errorf("Unable to create partition consumer for topic %v partition %v: %v", k.Topic, i, err)
 			return err
 		}
 		k.partConsumers = append(k.partConsumers, &partitionConsumer)
