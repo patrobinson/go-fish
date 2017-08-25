@@ -73,21 +73,18 @@ func (rule *cloudTrailAggRule) WindowInterval() int {
 
 func (rule *cloudTrailAggRule) Window() ([]output.OutputEvent, error) {
 	var result []output.OutputEvent
-	var acc [][]byte
-	rule.kvStore.ForEach(func(k, v []byte) error {
-		acc = append(acc, v)
-		return nil
-	})
-	for _, v := range acc {
+	err := rule.kvStore.ForEach(func(k, v []byte) error {
 		var event output.OutputEvent
 		err := json.Unmarshal(v, &event)
 		if err != nil {
-			return result, err
+			return err
 		}
 
 		result = append(result, event)
-	}
-	return result, nil
+		rule.kvStore.Delete(k)
+		return nil
+	})
+	return result, err
 }
 
 func (rule *cloudTrailAggRule) generatePrincipalName(userIdentity es.UserIdentity) string {
