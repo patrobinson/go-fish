@@ -35,6 +35,9 @@ func (o *SQSOutput) Sink(input *chan interface{}, wg *sync.WaitGroup) {
 	defer (*wg).Done()
 
 	for i := range *input {
+		if i == nil {
+			continue
+		}
 		data := i.(*OutputEvent)
 		rawData, _ := json.Marshal(data)
 		sendMessageParams := &sqs.SendMessageInput{
