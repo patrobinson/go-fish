@@ -103,6 +103,7 @@ func BenchmarkRun(b *testing.B) {
 // +build integration
 
 func TestStreamToStreamStateIntegration(t *testing.T) {
+	defer os.Remove("assumeRoleEnrichment")
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -155,8 +156,6 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 		fmt.Printf("SourceIP: %v\n", event.EventId == expectedEvent.SourceIP)
 		fmt.Printf("Body: %v\n", reflect.DeepEqual(event.Body, expectedEvent.Body))
 	}
-
-	os.Remove("assumeRoleEnrichment")
 }
 
 type testStatefulInput struct {
@@ -190,6 +189,7 @@ func (t *testStatefulOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
 }
 
 func TestAggregateStateIntegration(t *testing.T) {
+	defer os.Remove("aggregateEvent")
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -251,6 +251,4 @@ func TestAggregateStateIntegration(t *testing.T) {
 		fmt.Printf("SourceIP: %v\n", event.EventId == expectedEvent.SourceIP)
 		fmt.Printf("Body: %v\n", reflect.DeepEqual(event.Body, expectedEvent.Body))
 	}
-
-	os.Remove("aggregateEvent")
 }
