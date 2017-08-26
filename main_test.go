@@ -134,17 +134,14 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 	assumeRoleEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/assumeRoleEvent.json")
 	inChan <- assumeRoleEvent
 
-	r1 := <-outChan
+	r2 := <-outChan
 	fmt.Print("Received 1 output\n")
 
 	createUserEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/createUserEvent.json")
 	inChan <- createUserEvent
 
-	r2 := <-outChan
+	r2 = <-outChan
 	fmt.Print("Received 2 output\n")
-	if !r1.(bool) {
-		t.Errorf("Rules did not match %v", r1)
-	}
 	if !reflect.DeepEqual(r2.(output.OutputEvent), expectedEvent) {
 		t.Errorf("Expected %v\nGot %v\n", expectedEvent, r2)
 		event := r2.(output.OutputEvent)
@@ -223,12 +220,21 @@ func TestAggregateStateIntegration(t *testing.T) {
 	createUserEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/createUserEvent.json")
 	inChan <- createUserEvent
 	out := <-outChan
+	if out != nil {
+		t.Errorf("Expected %v\nGot %v\n", nil, out)
+	}
 
 	inChan <- createUserEvent
 	out = <-outChan
+	if out != nil {
+		t.Errorf("Expected %v\nGot %v\n", nil, out)
+	}
 
 	inChan <- createUserEvent
 	out = <-outChan
+	if out != nil {
+		t.Errorf("Expected %v\nGot %v\n", nil, out)
+	}
 
 	out = <-outChan
 
