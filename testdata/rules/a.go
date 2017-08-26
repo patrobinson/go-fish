@@ -1,12 +1,13 @@
 package main
 
 import (
+	"github.com/patrobinson/go-fish/ruleHelpers"
 	es "github.com/patrobinson/go-fish/testdata/eventStructs"
 )
 
-type aRule string
-
-func (r *aRule) Init() {}
+type aRule struct {
+	rule_helpers.BasicRule
+}
 
 func (r *aRule) Process(thing interface{}) interface{} {
 	foo, ok := thing.(es.ExampleType)
@@ -16,8 +17,6 @@ func (r *aRule) Process(thing interface{}) interface{} {
 	return false
 }
 
-func (r *aRule) String() string { return string(*r) }
-
-func (r *aRule) Close() {}
+func (r *aRule) String() string { return "aRule" }
 
 var Rule aRule

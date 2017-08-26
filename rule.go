@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/patrobinson/go-fish/output"
 )
 
 // Rule is an interface for rule implementations
@@ -14,6 +15,8 @@ type Rule interface {
 	Init()
 	Process(interface{}) interface{}
 	String() string
+	WindowInterval() int
+	Window() ([]output.OutputEvent, error)
 	Close()
 }
 
@@ -33,6 +36,9 @@ func startRules(rulesFolder string, output *chan interface{}, wg *sync.WaitGroup
 
 	log.Infof("Found %v rules", len(rules))
 
+	windower := &windowManager{
+		outChan: output,
+	}
 	var inputs []*chan interface{}
 	for _, r := range rules {
 		symRule, err := r.Lookup("Rule")
@@ -50,6 +56,13 @@ func startRules(rulesFolder string, output *chan interface{}, wg *sync.WaitGroup
 		input := make(chan interface{})
 		inputs = append(inputs, &input)
 		log.Debugf("Starting %v\n", rule.String())
+
+		if rule.WindowInterval() > 0 {
+			windower.add(windowConfig{
+				rule:     rule,
+				interval: rule.WindowInterval(),
+			})
+		}
 		(*wg).Add(1)
 		go func(input *chan interface{}, output *chan interface{}, wg *sync.WaitGroup, r *Rule) {
 			defer (*wg).Done()
@@ -60,6 +73,8 @@ func startRules(rulesFolder string, output *chan interface{}, wg *sync.WaitGroup
 			}
 		}(&input, output, wg, &rule)
 	}
+
+	windower.start()
 
 	return inputs
 }

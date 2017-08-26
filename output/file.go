@@ -27,11 +27,20 @@ func (f *FileOutput) Sink(input *chan interface{}, wg *sync.WaitGroup) {
 	defer f.file.Close()
 
 	for i := range *input {
-		data := i.(*OutputEvent)
-		rawData, _ := json.Marshal(data)
-		_, err := f.file.Write(rawData)
+		if i == nil {
+			continue
+		}
+		data, err := json.Marshal(i)
+		if err != nil {
+			log.Fatalf("Unable to write event to file: %v\n%v\n", err, data)
+		}
+		_, err = file.Write(data)
 		if err != nil {
 			log.Fatalf("Unable to write to file %v: %v\n", f.FileName, err)
+		}
+		err = file.Sync()
+		if err != nil {
+			log.Fatalf("Unable to sync file %v: %v\n", f.FileName, err)
 		}
 	}
 }
