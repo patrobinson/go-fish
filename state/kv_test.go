@@ -23,5 +23,11 @@ func TestKVStore(t *testing.T) {
 		t.Errorf("Expected value at foo to be bar, go %v", value)
 	}
 
+	kv.Delete([]byte("foo"))
+	value = kv.Get([]byte("foo"))
+	if string(value) != "" {
+		t.Errorf("Expected value at foo to be empty, got %v", value)
+	}
+
 	os.Remove("test.db")
 }
