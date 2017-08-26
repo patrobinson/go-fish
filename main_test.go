@@ -103,6 +103,7 @@ func BenchmarkRun(b *testing.B) {
 // +build integration
 
 func TestStreamToStreamStateIntegration(t *testing.T) {
+	defer os.Remove("assumeRoleEnrichment")
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -134,17 +135,14 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 	assumeRoleEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/assumeRoleEvent.json")
 	inChan <- assumeRoleEvent
 
-	r1 := <-outChan
+	r2 := <-outChan
 	fmt.Print("Received 1 output\n")
 
 	createUserEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/createUserEvent.json")
 	inChan <- createUserEvent
 
-	r2 := <-outChan
+	r2 = <-outChan
 	fmt.Print("Received 2 output\n")
-	if !r1.(bool) {
-		t.Errorf("Rules did not match %v", r1)
-	}
 	if !reflect.DeepEqual(r2.(output.OutputEvent), expectedEvent) {
 		t.Errorf("Expected %v\nGot %v\n", expectedEvent, r2)
 		event := r2.(output.OutputEvent)
@@ -158,8 +156,6 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 		fmt.Printf("SourceIP: %v\n", event.EventId == expectedEvent.SourceIP)
 		fmt.Printf("Body: %v\n", reflect.DeepEqual(event.Body, expectedEvent.Body))
 	}
-
-	os.Remove("assumeRoleEnrichment")
 }
 
 type testStatefulInput struct {
@@ -193,6 +189,7 @@ func (t *testStatefulOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
 }
 
 func TestAggregateStateIntegration(t *testing.T) {
+	defer os.Remove("aggregateEvent")
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -223,12 +220,21 @@ func TestAggregateStateIntegration(t *testing.T) {
 	createUserEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/createUserEvent.json")
 	inChan <- createUserEvent
 	out := <-outChan
+	if out != nil {
+		t.Errorf("Expected %v\nGot %v\n", nil, out)
+	}
 
 	inChan <- createUserEvent
 	out = <-outChan
+	if out != nil {
+		t.Errorf("Expected %v\nGot %v\n", nil, out)
+	}
 
 	inChan <- createUserEvent
 	out = <-outChan
+	if out != nil {
+		t.Errorf("Expected %v\nGot %v\n", nil, out)
+	}
 
 	out = <-outChan
 
@@ -245,6 +251,4 @@ func TestAggregateStateIntegration(t *testing.T) {
 		fmt.Printf("SourceIP: %v\n", event.EventId == expectedEvent.SourceIP)
 		fmt.Printf("Body: %v\n", reflect.DeepEqual(event.Body, expectedEvent.Body))
 	}
-
-	os.Remove("aggregateEvent")
 }
