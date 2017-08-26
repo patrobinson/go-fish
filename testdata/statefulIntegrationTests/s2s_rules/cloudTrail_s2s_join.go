@@ -40,7 +40,7 @@ func (rule *cloudTrailRule) Process(evt interface{}) interface{} {
 		if err != nil {
 			log.Error(err)
 		}
-		return true
+		return nil
 	case "CreateUser":
 		return rule.processCreateUserEvent(cloudTrailEvent)
 	}

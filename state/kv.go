@@ -64,3 +64,12 @@ func (k *KVStore) ForEach(function func(k, v []byte) error) error {
 		return b.ForEach(function)
 	})
 }
+
+// Delete deletes the given key
+func (k *KVStore) Delete(key []byte) {
+	k.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(k.BucketName))
+		b.Delete(key)
+		return nil
+	})
+}

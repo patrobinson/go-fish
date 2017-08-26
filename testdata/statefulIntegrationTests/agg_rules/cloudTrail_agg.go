@@ -27,7 +27,6 @@ func (rule *cloudTrailAggRule) Process(evt interface{}) interface{} {
 		return false
 	}
 
-	var occurrences int
 	if cloudTrailEvent.UserIdentity.SessionContext.Attributes.MfaAuthenticated == "false" {
 		var event output.OutputEvent
 		principalName := rule.generatePrincipalName(cloudTrailEvent.UserIdentity)
@@ -56,7 +55,6 @@ func (rule *cloudTrailAggRule) Process(evt interface{}) interface{} {
 			event.Occurrences++
 		}
 
-		occurrences = event.Occurrences
 		rawEvt, err := json.Marshal(event)
 		if err != nil {
 			return err
@@ -64,7 +62,7 @@ func (rule *cloudTrailAggRule) Process(evt interface{}) interface{} {
 		rule.kvStore.Set([]byte(principalName), rawEvt)
 	}
 
-	return occurrences
+	return nil
 }
 
 func (rule *cloudTrailAggRule) WindowInterval() int {
@@ -72,22 +70,23 @@ func (rule *cloudTrailAggRule) WindowInterval() int {
 }
 
 func (rule *cloudTrailAggRule) Window() ([]output.OutputEvent, error) {
-	var result []output.OutputEvent
-	var acc [][]byte
-	rule.kvStore.ForEach(func(k, v []byte) error {
-		acc = append(acc, v)
-		return nil
-	})
-	for _, v := range acc {
+	var outputs []output.OutputEvent
+	var keys [][]byte
+	err := rule.kvStore.ForEach(func(k, v []byte) error {
 		var event output.OutputEvent
 		err := json.Unmarshal(v, &event)
 		if err != nil {
-			return result, err
+			return err
 		}
 
-		result = append(result, event)
+		outputs = append(outputs, event)
+		keys = append(keys, k)
+		return nil
+	})
+	for _, key := range keys {
+		rule.kvStore.Delete(key)
 	}
-	return result, nil
+	return outputs, err
 }
 
 func (rule *cloudTrailAggRule) generatePrincipalName(userIdentity es.UserIdentity) string {
