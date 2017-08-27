@@ -2,7 +2,6 @@ package output
 
 import (
 	"encoding/json"
-	"io"
 	"os"
 	"sync"
 
@@ -11,7 +10,7 @@ import (
 
 type FileOutput struct {
 	FileName string
-	file     io.WriteCloser
+	file     *os.File
 }
 
 func (f *FileOutput) Init() error {
@@ -34,11 +33,11 @@ func (f *FileOutput) Sink(input *chan interface{}, wg *sync.WaitGroup) {
 		if err != nil {
 			log.Fatalf("Unable to write event to file: %v\n%v\n", err, data)
 		}
-		_, err = file.Write(data)
+		_, err = f.file.Write(data)
 		if err != nil {
 			log.Fatalf("Unable to write to file %v: %v\n", f.FileName, err)
 		}
-		err = file.Sync()
+		err = f.file.Sync()
 		if err != nil {
 			log.Fatalf("Unable to sync file %v: %v\n", f.FileName, err)
 		}
