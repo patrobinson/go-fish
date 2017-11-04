@@ -1,6 +1,8 @@
 package input
 
 import (
+	"encoding/json"
+
 	certstream "github.com/CaliDog/certstream-go"
 	log "github.com/Sirupsen/logrus"
 	"github.com/jmoiron/jsonq"
@@ -22,11 +24,15 @@ func (c *CertStreamInput) Init() error {
 func (c *CertStreamInput) Retrieve(output *chan []byte) {
 	defer close(*output)
 	for i := range c.stream {
-		json, err := i.String()
+		j, err := i.Object()
 		if err != nil {
 			log.Errorf("Invalid data from Cert Stream: %s", err)
 			continue
 		}
-		*output <- []byte(json)
+		data, err := json.Marshal(j)
+		if err != nil {
+			log.Errorf("Unable to Marshal Cert Stream: %s", err)
+		}
+		*output <- data
 	}
 }
