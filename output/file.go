@@ -29,7 +29,7 @@ func (f *FileOutput) Sink(input *chan interface{}, wg *sync.WaitGroup) {
 		if err != nil {
 			log.Fatalf("Unable to write event to file: %v\n%v\n", err, data)
 		}
-		_, err = file.Write(data)
+		_, err = file.Write(append(data, []byte("\n")...))
 		if err != nil {
 			log.Fatalf("Unable to write to file %v: %v\n", f.FileName, err)
 		}
