@@ -37,6 +37,10 @@ for DIR in "eventTypes rules"; do
 done
 ```
 
+### Examples
+
+See `examples/` for some implementations of go-fish.
+
 ### Creating an Event Struct
 
 The Event Struct can simply defines the data structure for the event and implements the `event` interface. This is a trivial example where the event contains just a single string:

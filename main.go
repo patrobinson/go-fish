@@ -39,6 +39,8 @@ func main() {
 		}
 	} else if config.Input == "File" {
 		in = &input.FileInput{FileName: (*config.FileConfig).InputFile}
+	} else if config.Input == "CertStream" {
+		in = &input.CertStreamInput{}
 	} else {
 		log.Fatalf("Invalid input type: %v", config.Input)
 	}
