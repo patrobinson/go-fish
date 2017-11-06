@@ -8,6 +8,8 @@ import (
 	"github.com/patrobinson/go-fish/output"
 )
 
+func main() {}
+
 type domainCertIssued struct {
 	domainName *regexp.Regexp
 }

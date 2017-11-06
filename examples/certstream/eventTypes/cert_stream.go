@@ -7,6 +7,8 @@ import (
 	es "github.com/patrobinson/go-fish/examples/certstream/eventStructs"
 )
 
+func main() {}
+
 type certStream struct{}
 
 func (e certStream) Decode(evt []byte) (event.Event, error) {
