@@ -18,6 +18,7 @@ type Input interface {
 // Output is an interface for output implementations
 type Output interface {
 	Sink(*chan interface{}, *sync.WaitGroup)
+	Init() error
 }
 
 func main() {
@@ -44,11 +45,25 @@ func main() {
 		}
 	} else if config.Input == "File" {
 		in = &input.FileInput{FileName: (*config.FileConfig).InputFile}
+	} else if config.Input == "CertStream" {
+		in = &input.CertStreamInput{}
 	} else {
 		log.Fatalf("Invalid input type: %v", config.Input)
 	}
 
-	out := &output.FileOutput{FileName: (*config.FileConfig).OutputFile}
+	var out interface{}
+	if config.Output == "SQS" {
+		out = &output.SQSOutput{
+			QueueUrl: config.SqsConfig.QueueUrl,
+			Region:   config.SqsConfig.Region,
+		}
+	} else if config.Output == "File" {
+		out = &output.FileOutput{
+			FileName: (*config.FileConfig).OutputFile,
+		}
+	} else {
+		log.Fatalf("Invalid output type: %v", config.Output)
+	}
 
 	run(config.RuleFolder, config.EventTypeFolder, in, out)
 }
@@ -57,10 +72,6 @@ func run(rulesFolder string, eventFolder string, in interface{}, out interface{}
 	input := in.(Input)
 	output := out.(Output)
 
-	err := input.Init()
-	if err != nil {
-		log.Fatalf("Input setup failed: %v", err)
-	}
 	var outWg sync.WaitGroup
 	var ruleWg sync.WaitGroup
 
@@ -98,6 +109,10 @@ func run(rulesFolder string, eventFolder string, in interface{}, out interface{}
 }
 
 func startOutput(out *Output, wg *sync.WaitGroup) *chan interface{} {
+	err := (*out).Init()
+	if err != nil {
+		log.Fatalf("Input setup failed: %v", err)
+	}
 	(*wg).Add(1)
 	outChan := make(chan interface{})
 	go (*out).Sink(&outChan, wg)
@@ -105,6 +120,10 @@ func startOutput(out *Output, wg *sync.WaitGroup) *chan interface{} {
 }
 
 func startInput(in *Input) *chan []byte {
+	err := (*in).Init()
+	if err != nil {
+		log.Fatalf("Input setup failed: %v", err)
+	}
 	inChan := make(chan []byte)
 	go (*in).Retrieve(&inChan)
 	return &inChan

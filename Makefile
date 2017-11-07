@@ -19,3 +19,8 @@ integration: get
 	GOOS=$(GOOS) go build -buildmode=plugin -o testdata/statefulIntegrationTests/agg_rules/cloudTrail_agg.so testdata/statefulIntegrationTests/agg_rules/cloudTrail_agg.go
 	GOOS=$(GOOS) go build -buildmode=plugin -o testdata/statefulIntegrationTests/eventTypes/cloudTrail.so testdata/statefulIntegrationTests/eventTypes/cloudTrail.go
 	go test -timeout 30s -run Integration
+
+build-certstream-example: get
+	cd examples/certstream/rules && go get || true
+	GOOS=$(GOOS) go build -buildmode=plugin -o examples/certstream/rules/domain_cert_issued.so examples/certstream/rules/domain_cert_issued.go
+	GOOS=$(GOOS) go build -buildmode=plugin -o examples/certstream/eventTypes/cert_stream.so examples/certstream/eventTypes/cert_stream.go

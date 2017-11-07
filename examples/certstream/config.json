@@ -1,0 +1,8 @@
+{
+  "input": "CertStream",
+  "fileConfig": {
+      "outputFile": "/tmp/out"
+  },
+  "RuleFolder": "/go/src/github.com/patrobinson/go-fish/examples/certstream/rules",
+  "EventTypeFolder": "/go/src/github.com/patrobinson/go-fish/examples/certstream/eventTypes"
+}
