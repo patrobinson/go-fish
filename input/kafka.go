@@ -11,6 +11,7 @@ type KafkaInput struct {
 	Partitions    int32
 	consumer      sarama.Consumer
 	partConsumers []*sarama.PartitionConsumer
+	outputChan    *chan []byte
 }
 
 func (k *KafkaInput) Init() error {
@@ -19,6 +20,10 @@ func (k *KafkaInput) Init() error {
 	if err != nil {
 		log.Errorf("Unable to open Consumer: %v", err)
 	}
+	return k.createPartitionConsumers()
+}
+
+func (k *KafkaInput) createPartitionConsumers() error {
 	for i := int32(0); i < k.Partitions; i++ {
 		partitionConsumer, err := k.consumer.ConsumePartition(k.Topic, i, sarama.OffsetNewest)
 		if err != nil {
@@ -31,11 +36,16 @@ func (k *KafkaInput) Init() error {
 }
 
 func (k *KafkaInput) Retrieve(output *chan []byte) {
+	k.outputChan = output
+	for _, partitionConsumer := range k.partConsumers {
+		go k.getMessages(partitionConsumer)
+	}
+}
+
+func (k *KafkaInput) getMessages(partConsumer *sarama.PartitionConsumer) {
 	for {
-		for _, partitionConsumer := range k.partConsumers {
-			msg := <-(*partitionConsumer).Messages()
-			*output <- msg.Value
-		}
+		msg := <-(*partConsumer).Messages()
+		*k.outputChan <- msg.Value
 	}
 }
 
