@@ -7,12 +7,19 @@ import (
 
 type config struct {
 	Input           string         `json:"input"`
+	KafkaConfig     *kafkaConfig   `json:"kafkaConfig,omitempty"`
 	Output          string         `json:"output"`
 	KinesisConfig   *kinesisConfig `json:"kinesisConfig,omitempty"`
 	FileConfig      *fileConfig    `json:"fileConfig,omitempty"`
 	SqsConfig       *sqsConfig     `json:"sqsConfig,omitempty"`
 	RuleFolder      string
 	EventTypeFolder string
+}
+
+type kafkaConfig struct {
+	Broker     string `json:"broker"`
+	Topic      string `json:"topic"`
+	Partitions int32  `json:"partitions"`
 }
 
 type kinesisConfig struct {
