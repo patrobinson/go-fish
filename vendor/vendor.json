@@ -9,6 +9,18 @@
 			"revisionTime": "2017-10-20T20:32:19Z"
 		},
 		{
+			"checksumSHA1": "jjK8/P0gc4Sk5rXNx5e3qZrEqOo=",
+			"path": "github.com/Shopify/sarama",
+			"revision": "3fee590c5568849516741670af9331a193bbe2a3",
+			"revisionTime": "2017-08-14T12:50:27Z"
+		},
+		{
+			"checksumSHA1": "17ZLZTryeD4Julbx/TtOOqwnF9E=",
+			"path": "github.com/Shopify/sarama/mocks",
+			"revision": "3fee590c5568849516741670af9331a193bbe2a3",
+			"revisionTime": "2017-08-14T12:50:27Z"
+		},
+		{
 			"checksumSHA1": "9X1/hLR+WoHu3Vg6SDKF6W6Rjm4=",
 			"path": "github.com/Sirupsen/logrus",
 			"revision": "7dd06bf38e1e13df288d471a57d5adbac106be9e",
@@ -213,10 +225,40 @@
 			"revisionTime": "2017-07-17T17:11:48Z"
 		},
 		{
+			"checksumSHA1": "mrz/kicZiUaHxkyfvC/DyQcr8Do=",
+			"path": "github.com/davecgh/go-spew/spew",
+			"revision": "adab96458c51a58dc1783b3335dcce5461522e75",
+			"revisionTime": "2017-07-11T18:34:51Z"
+		},
+		{
+			"checksumSHA1": "y2Kh4iPlgCPXSGTCcFpzePYdzzg=",
+			"path": "github.com/eapache/go-resiliency/breaker",
+			"revision": "b1fe83b5b03f624450823b751b662259ffc6af70",
+			"revisionTime": "2017-06-07T16:36:15Z"
+		},
+		{
+			"checksumSHA1": "WHl96RVZlOOdF4Lb1OOadMpw8ls=",
+			"path": "github.com/eapache/go-xerial-snappy",
+			"revision": "bb955e01b9346ac19dc29eb16586c90ded99a98c",
+			"revisionTime": "2016-06-09T14:24:08Z"
+		},
+		{
+			"checksumSHA1": "oCCs6kDanizatplM5e/hX76busE=",
+			"path": "github.com/eapache/queue",
+			"revision": "44cc805cf13205b55f69e14bcb69867d1ae92f98",
+			"revisionTime": "2016-08-05T00:47:13Z"
+		},
+		{
 			"checksumSHA1": "Y/t3trtei7dkADWEVv8WiPuYv60=",
 			"path": "github.com/go-ini/ini",
 			"revision": "f280b3ba517bf5fc98922624f21fb0e7a92adaec",
 			"revisionTime": "2017-10-26T18:46:43Z"
+		},
+		{
+			"checksumSHA1": "p/8vSviYF91gFflhrt5vkyksroo=",
+			"path": "github.com/golang/snappy",
+			"revision": "553a641470496b2327abcac10b36396bd98e45c9",
+			"revisionTime": "2017-02-15T23:32:05Z"
 		},
 		{
 			"checksumSHA1": "rNGJereenlgchMueLU9iBCyQDo8=",
@@ -241,6 +283,24 @@
 			"path": "github.com/op/go-logging",
 			"revision": "970db520ece77730c7e4724c61121037378659d9",
 			"revisionTime": "2016-03-15T20:05:05Z"
+		},
+		{
+			"checksumSHA1": "FGg99nQ56Fo3radSCuU1AeEUJug=",
+			"path": "github.com/pierrec/lz4",
+			"revision": "5a3d2245f97fc249850e7802e3c01fad02a1c316",
+			"revisionTime": "2017-05-19T17:06:25Z"
+		},
+		{
+			"checksumSHA1": "zPWRjzsPeXCoqmidIcJtHbvrvRs=",
+			"path": "github.com/pierrec/xxHash/xxHash32",
+			"revision": "a0006b13c722f7f12368c00a3d3c2ae8a999a0c6",
+			"revisionTime": "2017-07-14T08:24:55Z"
+		},
+		{
+			"checksumSHA1": "KAzbLjI9MzW2tjfcAsK75lVRp6I=",
+			"path": "github.com/rcrowley/go-metrics",
+			"revision": "1f30fe9094a513ce4c700b9a54458bbb0c96996c",
+			"revisionTime": "2016-11-28T21:05:44Z"
 		}
 	],
 	"rootPath": "github.com/patrobinson/go-fish"
