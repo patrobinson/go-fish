@@ -1,5 +1,6 @@
 {
   "input": "CertStream",
+  "output": "File",
   "fileConfig": {
       "outputFile": "/tmp/out"
   },
