@@ -39,8 +39,7 @@ func (k *KVStore) Close() {
 func (k *KVStore) Set(key []byte, value []byte) error {
 	return k.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(k.BucketName))
-		err := b.Put(key, value)
-		return err
+		return b.Put(key, value)
 	})
 }
 
