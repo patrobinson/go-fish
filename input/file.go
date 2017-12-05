@@ -7,6 +7,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+type FileConfig struct {
+	Path string `json:"path"`
+}
+
 type FileInput struct {
 	FileName string
 }

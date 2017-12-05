@@ -8,6 +8,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+type FileConfig struct {
+	Path string `json:"path"`
+}
+
 type FileOutput struct {
 	FileName string
 	file     *os.File

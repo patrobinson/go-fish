@@ -45,9 +45,10 @@ func (t *testOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
 
 func TestSuccessfulRun(t *testing.T) {
 	output := make(chan bool)
-	out := &testOutput{c: &output}
-	in := &testInput{value: "a"}
-	go run("testdata/rules", "testdata/eventTypes", in, out)
+	//out := &testOutput{c: &output}
+	//in := &testInput{value: "a"}
+	pipeline := Pipeline{}
+	pipeline.Run()
 	r1 := <-output
 	fmt.Print("Received 1 output\n")
 	r2 := <-output
@@ -59,9 +60,10 @@ func TestSuccessfulRun(t *testing.T) {
 
 func TestFailRun(t *testing.T) {
 	output := make(chan bool)
-	out := &testOutput{c: &output}
-	in := &testInput{value: "abc"}
-	go run("testdata/rules", "testdata/eventTypes", in, out)
+	//out := &testOutput{c: &output}
+	//in := &testInput{value: "abc"}
+	pipeline := Pipeline{}
+	pipeline.Run()
 	if r1, r2 := <-output, <-output; r1 || r2 {
 		t.Errorf("Rules did not match %v %v", r1, r2)
 	}
@@ -85,14 +87,16 @@ func (t *benchmarkInput) Retrieve(out *chan []byte) {
 func BenchmarkRun(b *testing.B) {
 	log.SetLevel(log.WarnLevel)
 	output := make(chan bool)
-	out := &testOutput{c: &output}
+	//out := &testOutput{c: &output}
 
 	input := make(chan []byte)
-	in := &benchmarkInput{input: &input}
+	//in := &benchmarkInput{input: &input}
 	var r1 bool
 	var r2 bool
 	b.ResetTimer()
-	go run("testdata/rules", "testdata/eventTypes", in, out)
+	//go run("testdata/rules", "testdata/eventTypes", in, out)
+	pipeline := Pipeline{}
+	pipeline.Run()
 	for i := 0; i < b.N; i++ {
 		bs := make([]byte, 1)
 		bs[0] = byte(i)
@@ -128,13 +132,15 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 	}
 
 	outChan := make(chan interface{})
-	out := &testStatefulOutput{c: &outChan}
+	//out := &testStatefulOutput{c: &outChan}
 	inChan := make(chan []byte)
-	in := &testStatefulInput{
+	/*in := &testStatefulInput{
 		channel: &inChan,
 		inputs:  2,
-	}
-	go run("testdata/statefulIntegrationTests/s2s_rules", "testdata/statefulIntegrationTests/eventTypes", in, out)
+	}*/
+	//go run("testdata/statefulIntegrationTests/s2s_rules", "testdata/statefulIntegrationTests/eventTypes", in, out)
+	pipeline := Pipeline{}
+	pipeline.Run()
 
 	assumeRoleEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/assumeRoleEvent.json")
 	inChan <- assumeRoleEvent
@@ -217,13 +223,15 @@ func TestAggregateStateIntegration(t *testing.T) {
 	}
 
 	outChan := make(chan interface{})
-	outProcessor := &testStatefulOutput{c: &outChan}
+	//outProcessor := &testStatefulOutput{c: &outChan}
 	inChan := make(chan []byte)
-	in := &testStatefulInput{
+	/*in := &testStatefulInput{
 		channel: &inChan,
 		inputs:  4,
-	}
-	go run("testdata/statefulIntegrationTests/agg_rules", "testdata/statefulIntegrationTests/eventTypes", in, outProcessor)
+	}*/
+	//go run("testdata/statefulIntegrationTests/agg_rules", "testdata/statefulIntegrationTests/eventTypes", in, outProcessor)
+	pipeline := Pipeline{}
+	pipeline.Run()
 
 	createUserEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/createUserEvent.json")
 	inChan <- createUserEvent

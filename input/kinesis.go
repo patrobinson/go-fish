@@ -15,6 +15,10 @@ import (
 	"github.com/patrobinson/go-fish/input/kinesisStateStore"
 )
 
+type KinesisConfig struct {
+	StreamName string `json:"streamName"`
+}
+
 // KinesisInput implements the Input interface
 type KinesisInput struct {
 	outputChan *chan []byte

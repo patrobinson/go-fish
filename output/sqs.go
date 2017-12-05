@@ -12,6 +12,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 )
 
+type SqsConfig struct {
+	QueueUrl string `json:"queueUrl"`
+	Region   string `json:"region"`
+}
+
 type SQSOutput struct {
 	QueueUrl string
 	Region   string
