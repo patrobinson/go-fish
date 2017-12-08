@@ -55,13 +55,13 @@ type RuleMapper struct {
 
 type SourceMapper struct {
 	InChannel *chan []byte
-	Source    *input.Source
+	Source    input.Source
 	Rules     []*RuleMapper
 }
 
 type SinkMapper struct {
 	OutChannel *chan interface{}
-	Sink       *output.Sink
+	Sink       output.Sink
 }
 
 func NewPipeline(config PipelineConfig) (*Pipeline, error) {
@@ -76,7 +76,7 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 		}
 		pipeline.Sources[name] = &SourceMapper{
 			InChannel: &inChan,
-			Source:    &source,
+			Source:    source,
 		}
 	}
 
@@ -88,7 +88,7 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 		}
 		pipeline.Sinks[name] = &SinkMapper{
 			OutChannel: &outChan,
-			Sink:       &sink,
+			Sink:       sink,
 		}
 	}
 
@@ -114,7 +114,7 @@ func (p *Pipeline) StartPipeline() error {
 	}
 
 	for _, sink := range p.Sinks {
-		err := output.StartOutput(sink.Sink, p.outWaitGroup, sink.OutChannel)
+		err := output.StartOutput(&sink.Sink, p.outWaitGroup, sink.OutChannel)
 		if err != nil {
 			return err
 		}
@@ -125,7 +125,7 @@ func (p *Pipeline) StartPipeline() error {
 	}
 
 	for _, source := range p.Sources {
-		err := input.StartInput(source.Source, source.InChannel)
+		err := input.StartInput(&source.Source, source.InChannel)
 		if err != nil {
 			return err
 		}
