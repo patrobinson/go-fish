@@ -11,26 +11,26 @@ type Source interface {
 }
 
 type SourceConfig struct {
-	Type          string         `json:"type"`
-	FileConfig    *FileConfig    `json:"file_config,omitempty"`
-	KinesisConfig *KinesisConfig `json:"kinesis_config,omitempty"`
-	KafkaConfig   *KafkaConfig   `json:"kafka_config,omitempty"`
+	Type          string        `json:"type"`
+	FileConfig    FileConfig    `json:"file_config,omitempty"`
+	KinesisConfig KinesisConfig `json:"kinesis_config,omitempty"`
+	KafkaConfig   KafkaConfig   `json:"kafka_config,omitempty"`
 }
 
 func Create(config SourceConfig) (Source, error) {
 	switch config.Type {
 	case "Kinesis":
 		return &KinesisInput{
-			StreamName: (*config.KinesisConfig).StreamName,
+			StreamName: config.KinesisConfig.StreamName,
 		}, nil
 	case "Kafka":
 		return &KafkaInput{
-			Broker:     (*config.KafkaConfig).Broker,
-			Topic:      (*config.KafkaConfig).Topic,
-			Partitions: (*config.KafkaConfig).Partitions,
+			Broker:     config.KafkaConfig.Broker,
+			Topic:      config.KafkaConfig.Topic,
+			Partitions: config.KafkaConfig.Partitions,
 		}, nil
 	case "File":
-		return &FileInput{FileName: (*config.FileConfig).Path}, nil
+		return &FileInput{FileName: config.FileConfig.Path}, nil
 	case "CertStream":
 		return &CertStreamInput{}, nil
 	}

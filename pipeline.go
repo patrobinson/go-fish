@@ -112,6 +112,8 @@ func (p *Pipeline) StartPipeline() error {
 	p.windower = &windowManager{
 		outChan: p.outChannel,
 	}
+	p.outWaitGroup = &sync.WaitGroup{}
+	p.ruleWaitGroup = &sync.WaitGroup{}
 
 	for _, sink := range p.Sinks {
 		err := output.StartOutput(&sink.Sink, p.outWaitGroup, sink.OutChannel)

@@ -4,6 +4,9 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/patrobinson/go-fish/input"
+	"github.com/patrobinson/go-fish/output"
 )
 
 func TestParseConfig(t *testing.T) {
@@ -26,6 +29,22 @@ func TestParseConfig(t *testing.T) {
 		States: map[string]stateConfig{
 			"searchConversion": stateConfig{
 				Type: "kv",
+			},
+		},
+		Sources: map[string]input.SourceConfig{
+			"fileInput": input.SourceConfig{
+				Type: "file",
+				FileConfig: input.FileConfig{
+					Path: "testdata/pipelines/input/file.in",
+				},
+			},
+		},
+		Sinks: map[string]output.SinkConfig{
+			"fileOutput": output.SinkConfig{
+				Type: "file",
+				FileConfig: output.FileConfig{
+					Path: "testdata/pipelines/output/file.out",
+				},
 			},
 		},
 	}
