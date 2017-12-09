@@ -24,7 +24,7 @@ func (rule *cloudTrailAggRule) Init() {
 func (rule *cloudTrailAggRule) Process(evt interface{}) interface{} {
 	cloudTrailEvent, ok := evt.(es.CloudTrail)
 	if !ok {
-		return false
+		return nil
 	}
 
 	if cloudTrailEvent.UserIdentity.SessionContext.Attributes.MfaAuthenticated == "false" {

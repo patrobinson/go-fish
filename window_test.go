@@ -32,13 +32,13 @@ func (r *TestRule) Window() ([]output.OutputEvent, error) {
 }
 
 func TestWindowManager(t *testing.T) {
-	testRule := TestRule{}
+	testRule := &TestRule{}
 	outChan := make(chan interface{})
 	manager := &windowManager{
 		outChan: &outChan,
 	}
 	config := &windowConfig{
-		rule:     &testRule,
+		rule:     testRule,
 		interval: 1,
 	}
 

@@ -31,7 +31,7 @@ func (rule *cloudTrailRule) WindowInterval() int { return 0 }
 func (rule *cloudTrailRule) Process(evt interface{}) interface{} {
 	cloudTrailEvent, ok := evt.(es.CloudTrail)
 	if !ok {
-		return false
+		return nil
 	}
 
 	switch cloudTrailEvent.EventName {
@@ -42,7 +42,9 @@ func (rule *cloudTrailRule) Process(evt interface{}) interface{} {
 		}
 		return nil
 	case "CreateUser":
-		return rule.processCreateUserEvent(cloudTrailEvent)
+		outputEvent := rule.processCreateUserEvent(cloudTrailEvent)
+		log.Debugf("Returning event %v", outputEvent)
+		return outputEvent
 	}
 
 	return nil

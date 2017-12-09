@@ -55,14 +55,14 @@ func startRule(rule Rule, output *chan interface{}, wg *sync.WaitGroup, windower
 		})
 	}
 	(*wg).Add(1)
-	go func(input *chan interface{}, output *chan interface{}, wg *sync.WaitGroup, r *Rule) {
+	go func(input *chan interface{}, output *chan interface{}, wg *sync.WaitGroup, r Rule) {
 		defer (*wg).Done()
-		defer (*r).Close()
+		defer r.Close()
 		for str := range *input {
-			res := (*r).Process(str)
+			res := r.Process(str)
 			*output <- res
 		}
-	}(&input, output, wg, &rule)
+	}(&input, output, wg, rule)
 
 	windower.start()
 

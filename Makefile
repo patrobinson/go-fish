@@ -13,12 +13,12 @@ build-testdata:
 check test tests: build-testdata
 	@go test -short -timeout $(TIMEOUT)s ./...
 
-integration:
+integration: build-testdata
 	cd testdata/statefulIntegrationTests/s2s_rules && go get || true
 	GOOS=$(GOOS) go build -buildmode=plugin -o testdata/statefulIntegrationTests/s2s_rules/cloudTrail_s2s_join.so testdata/statefulIntegrationTests/s2s_rules/cloudTrail_s2s_join.go
 	GOOS=$(GOOS) go build -buildmode=plugin -o testdata/statefulIntegrationTests/agg_rules/cloudTrail_agg.so testdata/statefulIntegrationTests/agg_rules/cloudTrail_agg.go
 	GOOS=$(GOOS) go build -buildmode=plugin -o testdata/statefulIntegrationTests/eventTypes/cloudTrail.so testdata/statefulIntegrationTests/eventTypes/cloudTrail.go
-	go test -timeout 30s -run Integration
+	go test -timeout 30s -tags=integration
 
 docker-integration:
 	docker run -ti --rm -v $(shell pwd):/go/src/github.com/patrobinson/go-fish -w /go/src/github.com/patrobinson/go-fish golang:1.8 make integration

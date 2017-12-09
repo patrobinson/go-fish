@@ -41,9 +41,6 @@ type Pipeline struct {
 	Sinks         map[string]*SinkMapper
 	outWaitGroup  *sync.WaitGroup
 	ruleWaitGroup *sync.WaitGroup
-	outChannel    *chan interface{}
-	inChannel     *chan []byte
-	windower      *windowManager
 	eventFolder   string
 }
 
@@ -51,6 +48,7 @@ type RuleMapper struct {
 	Rule             Rule
 	Sink             *SinkMapper
 	RuleInputChannel *chan interface{}
+	WindowManager    *windowManager
 }
 
 type SourceMapper struct {
@@ -101,7 +99,9 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 			Rule: rule,
 			Sink: pipeline.Sinks[ruleConfig.Sink],
 		}
+
 		pipeline.Rules[name] = ruleMapping
+		log.Infof("RuleMaps: %v", pipeline.Sources[ruleConfig.Source].Rules)
 		pipeline.Sources[ruleConfig.Source].Rules = append(pipeline.Sources[ruleConfig.Source].Rules, ruleMapping)
 	}
 
@@ -109,9 +109,6 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 }
 
 func (p *Pipeline) StartPipeline() error {
-	p.windower = &windowManager{
-		outChan: p.outChannel,
-	}
 	p.outWaitGroup = &sync.WaitGroup{}
 	p.ruleWaitGroup = &sync.WaitGroup{}
 
@@ -123,7 +120,10 @@ func (p *Pipeline) StartPipeline() error {
 	}
 
 	for _, rule := range p.Rules {
-		rule.RuleInputChannel = startRule(rule.Rule, rule.Sink.OutChannel, p.ruleWaitGroup, p.windower)
+		rule.WindowManager = &windowManager{
+			outChan: rule.Sink.OutChannel,
+		}
+		(*rule).RuleInputChannel = startRule(rule.Rule, rule.Sink.OutChannel, p.ruleWaitGroup, rule.WindowManager)
 	}
 
 	for _, source := range p.Sources {
@@ -143,14 +143,14 @@ func (p *Pipeline) Run() {
 	}
 
 	for _, source := range p.Sources {
-		go func(iChan *chan []byte, rules []*RuleMapper) {
+		go func(iChan *chan []byte, ruleMaps []*RuleMapper) {
 			for data := range *iChan {
 				evt, err := matchEventType(eventTypes, data)
 				if err != nil {
 					log.Infof("Error matching event: %v", err)
 				}
-				for _, rule := range rules {
-					*rule.RuleInputChannel <- evt
+				for _, ruleMap := range ruleMaps {
+					*ruleMap.RuleInputChannel <- evt
 				}
 			}
 		}(source.InChannel, source.Rules)
@@ -164,6 +164,10 @@ func (p *Pipeline) Run() {
 		break
 	}
 
+	p.Close()
+}
+
+func (p *Pipeline) Close() {
 	log.Debug("Closing rule channels\n")
 
 	for _, r := range p.Rules {

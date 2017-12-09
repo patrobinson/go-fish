@@ -53,6 +53,7 @@ func matchEventType(eventTypes []eventType, rawEvt []byte) (event.Event, error) 
 	var evt event.Event
 	for _, et := range eventTypes {
 		if evt, err := et.Decode(rawEvt); err == nil {
+			log.Debugf("Matched event to type %s", et.Name())
 			return evt, nil
 		}
 	}
