@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 
 	log "github.com/Sirupsen/logrus"
@@ -12,8 +13,9 @@ type State interface {
 }
 
 func main() {
-	configFile := os.Args[1]
-	file, err := os.Open(configFile)
+	configFile := flag.String("config", "", "Pipeline Config")
+	flag.Parse()
+	file, err := os.Open(*configFile)
 	if err != nil {
 		log.Fatalf("Failed to open Config File: %v", err)
 	}

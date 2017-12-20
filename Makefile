@@ -32,4 +32,4 @@ build-certstream-example:
 	GOOS=$(GOOS) go build -buildmode=plugin -o examples/certstream/eventTypes/cert_stream.so examples/certstream/eventTypes/cert_stream.go
 
 certstream-example: get build build-certstream-example 
-	./go-fish examples/certstream/config.json
+	./go-fish -config examples/certstream/config.json

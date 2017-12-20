@@ -37,6 +37,10 @@ for DIR in "eventTypes rules"; do
 done
 ```
 
+### Usage
+
+go-fish -config pipeline.json
+
 ### Examples
 
 See `examples/` for some implementations of go-fish. You can with the following command:
