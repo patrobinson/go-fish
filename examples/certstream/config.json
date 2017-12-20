@@ -1,9 +1,23 @@
 {
-  "input": "CertStream",
-  "output": "File",
-  "fileConfig": {
-      "outputFile": "/tmp/out"
+  "eventFolder": "examples/certstream/eventTypes",
+  "rules": {
+    "domainCertIssued": {
+      "source": "certStream",
+      "plugin": "examples/certstream/rules/domain_cert_issued.so",
+      "sink": "fileOutput"
+    }
   },
-  "RuleFolder": "/go/src/github.com/patrobinson/go-fish/examples/certstream/rules",
-  "EventTypeFolder": "/go/src/github.com/patrobinson/go-fish/examples/certstream/eventTypes"
+  "sources": {
+    "certStream": {
+      "type": "CertStream"
+    }
+  },
+  "sinks": {
+    "fileOutput": {
+      "type": "File",
+      "file_config": {
+        "path": "/tmp/file.out"
+      }
+    }
+  }
 }
