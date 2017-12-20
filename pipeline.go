@@ -86,8 +86,13 @@ type SinkMapper struct {
 }
 
 func NewPipeline(config PipelineConfig) (*Pipeline, error) {
-	var pipeline *Pipeline
-	pipeline.eventFolder = config.EventFolder
+	pipeline := &Pipeline{
+		eventFolder: config.EventFolder,
+		Sources:     make(map[string]*SourceMapper),
+		Rules:       make(map[string]*RuleMapper),
+		States:      make(map[string]State),
+		Sinks:       make(map[string]*SinkMapper),
+	}
 
 	for name, sourceConfig := range config.Sources {
 		inChan := make(chan []byte)
@@ -124,7 +129,6 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 		}
 
 		pipeline.Rules[name] = ruleMapping
-		log.Infof("RuleMaps: %v", pipeline.Sources[ruleConfig.Source].Rules)
 		pipeline.Sources[ruleConfig.Source].Rules = append(pipeline.Sources[ruleConfig.Source].Rules, ruleMapping)
 	}
 
@@ -142,8 +146,9 @@ func (p *Pipeline) StartPipeline() error {
 		}
 	}
 
-	for _, rule := range p.Rules {
-		rule.WindowManager = &windowManager{
+	for ruleName, rule := range p.Rules {
+		log.Infof("Starting rule %s", ruleName)
+		(*rule).WindowManager = &windowManager{
 			outChan: rule.Sink.OutChannel,
 		}
 		(*rule).RuleInputChannel = startRule(rule.Rule, rule.Sink.OutChannel, p.ruleWaitGroup, rule.WindowManager)
