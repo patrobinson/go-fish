@@ -36,7 +36,7 @@ func Create(config SinkConfig) (Sink, error) {
 func StartOutput(out *Sink, wg *sync.WaitGroup, outChannel *chan interface{}) error {
 	err := (*out).Init()
 	if err != nil {
-		return fmt.Errorf("Input setup failed: %v", err)
+		return fmt.Errorf("Output setup failed: %v", err)
 	}
 	(*wg).Add(1)
 	go (*out).Sink(outChannel, wg)
