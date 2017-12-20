@@ -21,6 +21,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
+	validateConfig(config)
 
 	pipeline, err := NewPipeline(config)
 	if err != nil {

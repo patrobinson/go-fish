@@ -30,7 +30,30 @@ func parseConfig(configFile io.Reader) (PipelineConfig, error) {
 	var config PipelineConfig
 	jsonParser := json.NewDecoder(configFile)
 	err := jsonParser.Decode(&config)
+	log.Debugf("Config Parsed: ", config)
 	return config, err
+}
+
+func validateConfig(config PipelineConfig) {
+	for ruleName, rule := range config.Rules {
+		if _, ok := config.Sources[rule.Source]; !ok {
+			log.Fatalf("Invalid source for rule %s: %s", ruleName, rule.Source)
+		}
+
+		_, ok := config.Sinks[rule.Sink]
+		if rule.Sink != "" && !ok {
+			log.Fatalf("Invalid sink for rule %s: %s", ruleName, rule.Sink)
+		}
+
+		_, ok = config.States[rule.State]
+		if rule.State != "" && !ok {
+			log.Fatalf("Invalid state for rule %s: %s", ruleName, rule.State)
+		}
+
+		if _, err := os.Stat(rule.Plugin); err != nil {
+			log.Fatalf("Invalid plugin: %s", err)
+		}
+	}
 }
 
 // Pipeline is a Directed Acyclic Graph
