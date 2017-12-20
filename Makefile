@@ -5,6 +5,9 @@ GOOS     = "linux"
 get:
 	@go get ./...
 
+build:
+	@go build
+
 build-testdata:
 	@for FILE in $(TESTDATA)/eventTypes/*.go $(TESTDATA)/rules/*.go; do \
 		GOOS=$(GOOS) go build -buildmode=plugin -o $${FILE%.go}.so $${FILE}	 ;\
@@ -27,3 +30,6 @@ build-certstream-example:
 	cd examples/certstream/rules && go get || true
 	GOOS=$(GOOS) go build -buildmode=plugin -o examples/certstream/rules/domain_cert_issued.so examples/certstream/rules/domain_cert_issued.go
 	GOOS=$(GOOS) go build -buildmode=plugin -o examples/certstream/eventTypes/cert_stream.so examples/certstream/eventTypes/cert_stream.go
+
+certstream-example: get build build-certstream-example 
+	./go-fish examples/certstream/config.json

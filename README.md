@@ -39,7 +39,10 @@ done
 
 ### Examples
 
-See `examples/` for some implementations of go-fish.
+See `examples/` for some implementations of go-fish. You can with the following command:
+```
+make certstream-example
+```
 
 ### Creating an Event Struct
 
