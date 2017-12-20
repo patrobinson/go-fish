@@ -19,6 +19,9 @@ type FileOutput struct {
 
 func (f *FileOutput) Init() error {
 	var err error
+	if _, err := os.Stat(f.FileName); os.IsNotExist(err) {
+		os.Create(f.FileName)
+	}
 	f.file, err = os.OpenFile(f.FileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 	return err
 }
