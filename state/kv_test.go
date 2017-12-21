@@ -15,7 +15,7 @@ func TestKVStore(t *testing.T) {
 
 	err := kv.Set([]byte("foo"), []byte("bar"))
 	if err != nil {
-		t.Error("Counter not incremented")
+		t.Error("Could not set key/value")
 	}
 
 	value := kv.Get([]byte("foo"))

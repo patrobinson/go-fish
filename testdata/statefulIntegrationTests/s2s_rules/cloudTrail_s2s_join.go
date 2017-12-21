@@ -11,15 +11,16 @@ import (
 )
 
 type cloudTrailRule struct {
-	kvStore state.KVStore
+	kvStore *state.KVStore
 }
 
-func (rule *cloudTrailRule) Init() {
-	rule.kvStore = state.KVStore{
-		DbFileName: "assumeRoleEnrichment",
-		BucketName: "Default",
+func (rule *cloudTrailRule) Init(s state.State) error {
+	var ok bool
+	rule.kvStore, ok = s.(*state.KVStore)
+	if !ok {
+		return fmt.Errorf("This rule expects a KVStore state, but got: %s", s)
 	}
-	rule.kvStore.Init()
+	return nil
 }
 
 func (rule *cloudTrailRule) Window() ([]output.OutputEvent, error) {
@@ -31,7 +32,7 @@ func (rule *cloudTrailRule) WindowInterval() int { return 0 }
 func (rule *cloudTrailRule) Process(evt interface{}) interface{} {
 	cloudTrailEvent, ok := evt.(es.CloudTrail)
 	if !ok {
-		return false
+		return nil
 	}
 
 	switch cloudTrailEvent.EventName {
@@ -42,7 +43,9 @@ func (rule *cloudTrailRule) Process(evt interface{}) interface{} {
 		}
 		return nil
 	case "CreateUser":
-		return rule.processCreateUserEvent(cloudTrailEvent)
+		outputEvent := rule.processCreateUserEvent(cloudTrailEvent)
+		log.Debugf("Returning event %v", outputEvent)
+		return outputEvent
 	}
 
 	return nil
@@ -50,9 +53,7 @@ func (rule *cloudTrailRule) Process(evt interface{}) interface{} {
 
 func (rule *cloudTrailRule) String() string { return "cloudTrailRule" }
 
-func (rule *cloudTrailRule) Close() {
-	rule.kvStore.Close()
-}
+func (rule *cloudTrailRule) Close() {}
 
 var Rule cloudTrailRule
 

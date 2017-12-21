@@ -5,13 +5,16 @@ import (
 	"time"
 
 	"github.com/patrobinson/go-fish/output"
+	"github.com/patrobinson/go-fish/state"
 )
 
 type TestRule struct {
 	windowCounter int
 }
 
-func (r *TestRule) Init()  {}
+func (r *TestRule) Init(state.State) error {
+	return nil
+}
 func (r *TestRule) Close() {}
 
 func (r *TestRule) Process(interface{}) interface{} {
@@ -32,13 +35,13 @@ func (r *TestRule) Window() ([]output.OutputEvent, error) {
 }
 
 func TestWindowManager(t *testing.T) {
-	testRule := TestRule{}
+	testRule := &TestRule{}
 	outChan := make(chan interface{})
 	manager := &windowManager{
 		outChan: &outChan,
 	}
 	config := &windowConfig{
-		rule:     &testRule,
+		rule:     testRule,
 		interval: 1,
 	}
 

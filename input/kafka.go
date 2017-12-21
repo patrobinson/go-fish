@@ -5,6 +5,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+type KafkaConfig struct {
+	Broker     string `json:"broker"`
+	Topic      string `json:"topic"`
+	Partitions int32  `json:"partitions"`
+}
+
 type KafkaInput struct {
 	Broker        string
 	Topic         string

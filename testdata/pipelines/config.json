@@ -1,0 +1,37 @@
+{
+  "eventFolder": "testdata/eventTypes",
+  "rules": {
+    "searchRule": {
+      "source": "fileInput",
+      "state": "searchConversion",
+      "plugin": "testdata/rules/search_rule.so",
+      "sink": "fileOutput"
+    },
+    "conversionRule": {
+      "source": "fileInput",
+      "plugin": "testdata/rules/conversion_rule.so",
+      "state": "searchConversion"
+    }
+  },
+  "states": {
+    "searchConversion": {
+      "type": "kv"
+    }
+  },
+  "sources": {
+    "fileInput": {
+      "type": "file",
+      "file_config": {
+        "path": "testdata/pipelines/input/file.in"
+      }
+    }
+  },
+  "sinks": {
+    "fileOutput": {
+      "type": "file",
+      "file_config": {
+        "path": "testdata/pipelines/output/file.out"
+      }
+    }
+  }
+}

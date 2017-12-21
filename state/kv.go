@@ -6,6 +6,11 @@ import (
 	"github.com/boltdb/bolt"
 )
 
+type KVConfig struct {
+	DbFileName string `json:"dbFileName"`
+	BucketName string `json:"bucketName"`
+}
+
 // KVStore provides a persistent KeyValue store
 type KVStore struct {
 	DbFileName string
@@ -39,8 +44,7 @@ func (k *KVStore) Close() {
 func (k *KVStore) Set(key []byte, value []byte) error {
 	return k.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(k.BucketName))
-		err := b.Put(key, value)
-		return err
+		return b.Put(key, value)
 	})
 }
 
