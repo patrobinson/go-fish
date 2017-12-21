@@ -6,6 +6,7 @@ import (
 
 	es "github.com/patrobinson/go-fish/examples/certstream/eventStructs"
 	"github.com/patrobinson/go-fish/output"
+	"github.com/patrobinson/go-fish/state"
 )
 
 func main() {}
@@ -14,12 +15,10 @@ type domainCertIssued struct {
 	domainName *regexp.Regexp
 }
 
-func (d *domainCertIssued) Init() {
+func (d *domainCertIssued) Init(state.State) error {
 	var err error
 	d.domainName, err = regexp.Compile("^www.*")
-	if err != nil {
-		panic("Unable to compile domain regex")
-	}
+	return err
 }
 
 func (d *domainCertIssued) WindowInterval() int {

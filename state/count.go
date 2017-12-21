@@ -32,6 +32,4 @@ func NewCounter() *Counter {
 	}
 }
 
-func (c *Counter) Close() error {
-	return nil
-}
+func (c *Counter) Close() {}

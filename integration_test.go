@@ -14,6 +14,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/patrobinson/go-fish/input"
 	"github.com/patrobinson/go-fish/output"
+	"github.com/patrobinson/go-fish/state"
 )
 
 type testInput struct {
@@ -51,7 +52,7 @@ func setupBasicPipeline(output *chan bool, input string) (*Pipeline, error) {
 		Source: "testInput",
 		Plugin: "testdata/rules/a.so",
 		Sink:   "testOutput",
-	})
+	}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +61,7 @@ func setupBasicPipeline(output *chan bool, input string) (*Pipeline, error) {
 		Source: "testInput",
 		Plugin: "testdata/rules/length.so",
 		Sink:   "testOutput",
-	})
+	}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -197,9 +198,17 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 		OutChannel: &outSink,
 		Sink:       out,
 	}
+	ruleState := &state.KVStore{
+		DbFileName: "s2s.db",
+		BucketName: "s2s",
+	}
+	err := ruleState.Init()
+	if err != nil {
+		t.Errorf("Error starting state: %s", err)
+	}
 	s2sRule, err := NewRule(ruleConfig{
 		Plugin: "testdata/statefulIntegrationTests/s2s_rules/cloudTrail_s2s_join.so",
-	})
+	}, ruleState)
 	if err != nil {
 		t.Errorf("Error while creating s2s rule plugin: %s", err)
 	}
@@ -314,9 +323,17 @@ func TestAggregateStateIntegration(t *testing.T) {
 		OutChannel: &outSink,
 		Sink:       out,
 	}
+	ruleState := &state.KVStore{
+		DbFileName: "agg.db",
+		BucketName: "agg",
+	}
+	err := ruleState.Init()
+	if err != nil {
+		t.Errorf("Error starting state: %s", err)
+	}
 	aggRule, err := NewRule(ruleConfig{
 		Plugin: "testdata/statefulIntegrationTests/agg_rules/cloudTrail_agg.so",
-	})
+	}, ruleState)
 	if err != nil {
 		t.Errorf("Error while creating agg rule plugin: %s", err)
 	}

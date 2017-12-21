@@ -10,15 +10,16 @@ import (
 )
 
 type cloudTrailAggRule struct {
-	kvStore state.KVStore
+	kvStore *state.KVStore
 }
 
-func (rule *cloudTrailAggRule) Init() {
-	rule.kvStore = state.KVStore{
-		DbFileName: "aggregateEvent",
-		BucketName: "CloudTrail",
+func (rule *cloudTrailAggRule) Init(s state.State) error {
+	var ok bool
+	rule.kvStore, ok = s.(*state.KVStore)
+	if !ok {
+		return fmt.Errorf("This rule expects a KVStore state, but got: %s", s)
 	}
-	rule.kvStore.Init()
+	return nil
 }
 
 func (rule *cloudTrailAggRule) Process(evt interface{}) interface{} {
@@ -110,8 +111,6 @@ func (rule *cloudTrailAggRule) generatePrincipalName(userIdentity es.UserIdentit
 
 func (rule *cloudTrailAggRule) String() string { return "cloudTrailAggRule" }
 
-func (rule *cloudTrailAggRule) Close() {
-	rule.kvStore.Close()
-}
+func (rule *cloudTrailAggRule) Close() {}
 
 var Rule cloudTrailAggRule

@@ -7,11 +7,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-type State interface {
-	Init() error
-	Close() error
-}
-
 func main() {
 	configFile := flag.String("config", "", "Pipeline Config")
 	flag.Parse()

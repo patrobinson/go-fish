@@ -11,19 +11,16 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/patrobinson/go-fish/input"
 	"github.com/patrobinson/go-fish/output"
+	"github.com/patrobinson/go-fish/state"
 )
 
 // PipelineConfig forms the basic configuration of our processor
 type PipelineConfig struct {
 	EventFolder string                        `json:"eventFolder"`
 	Rules       map[string]ruleConfig         `json:"rules"`
-	States      map[string]stateConfig        `json:"states"`
+	States      map[string]state.StateConfig  `json:"states"`
 	Sources     map[string]input.SourceConfig `json:"sources"`
 	Sinks       map[string]output.SinkConfig  `json:"sinks"`
-}
-
-type stateConfig struct {
-	Type string `json:"type"`
 }
 
 func parseConfig(configFile io.Reader) (PipelineConfig, error) {
@@ -59,7 +56,7 @@ func validateConfig(config PipelineConfig) {
 // Pipeline is a Directed Acyclic Graph
 type Pipeline struct {
 	Rules         map[string]*RuleMapper
-	States        map[string]State
+	States        map[string]state.State
 	Sources       map[string]*SourceMapper
 	Sinks         map[string]*SinkMapper
 	outWaitGroup  *sync.WaitGroup
@@ -72,6 +69,7 @@ type RuleMapper struct {
 	Sink             *SinkMapper
 	RuleInputChannel *chan interface{}
 	WindowManager    *windowManager
+	State            *state.State
 }
 
 type SourceMapper struct {
@@ -90,7 +88,7 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 		eventFolder: config.EventFolder,
 		Sources:     make(map[string]*SourceMapper),
 		Rules:       make(map[string]*RuleMapper),
-		States:      make(map[string]State),
+		States:      make(map[string]state.State),
 		Sinks:       make(map[string]*SinkMapper),
 	}
 
@@ -118,8 +116,23 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 		}
 	}
 
+	for name, stateConfig := range config.States {
+		var err error
+		pipeline.States[name], err = state.Create(stateConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	for name, ruleConfig := range config.Rules {
-		rule, err := NewRule(ruleConfig)
+		var ruleState state.State
+		if ruleConfig.State != "" {
+			ruleState = pipeline.States[ruleConfig.State]
+		} else {
+			ruleState = nil
+		}
+
+		rule, err := NewRule(ruleConfig, ruleState)
 		if err != nil {
 			return nil, err
 		}
@@ -208,4 +221,9 @@ func (p *Pipeline) Close() {
 		close(*o.OutChannel)
 	}
 	p.outWaitGroup.Wait()
+
+	log.Debug("Closing state files\n")
+	for _, s := range p.States {
+		s.Close()
+	}
 }

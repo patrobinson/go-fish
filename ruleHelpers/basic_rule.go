@@ -1,6 +1,9 @@
 package rule_helpers
 
-import "github.com/patrobinson/go-fish/output"
+import (
+	"github.com/patrobinson/go-fish/output"
+	"github.com/patrobinson/go-fish/state"
+)
 
 /*
 BasicRule implements the Init(), WindowInterval(), Window() and Close() functions.
@@ -13,7 +16,9 @@ It can be added to your basic rule like so
 */
 type BasicRule struct{}
 
-func (b *BasicRule) Init() {}
+func (b *BasicRule) Init(state.State) error {
+	return nil
+}
 
 func (b *BasicRule) WindowInterval() int {
 	return 0

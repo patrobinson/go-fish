@@ -7,6 +7,7 @@ import (
 
 	"github.com/patrobinson/go-fish/input"
 	"github.com/patrobinson/go-fish/output"
+	"github.com/patrobinson/go-fish/state"
 )
 
 func TestParseConfig(t *testing.T) {
@@ -26,8 +27,8 @@ func TestParseConfig(t *testing.T) {
 				Plugin: "testdata/rules/conversion_rule.so",
 			},
 		},
-		States: map[string]stateConfig{
-			"searchConversion": stateConfig{
+		States: map[string]state.StateConfig{
+			"searchConversion": state.StateConfig{
 				Type: "kv",
 			},
 		},
@@ -57,3 +58,7 @@ func TestParseConfig(t *testing.T) {
 		t.Errorf("Expected config:\n%v\nGot config:\n%v", expectedConfig, parsedConfig)
 	}
 }
+
+//func TestNewPipeline(t *testing.T) {}
+
+//func TestStartPipeline(t *testing.T) {}

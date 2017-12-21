@@ -6,6 +6,11 @@ import (
 	"github.com/boltdb/bolt"
 )
 
+type KVConfig struct {
+	DbFileName string `json:"dbFileName"`
+	BucketName string `json:"bucketName"`
+}
+
 // KVStore provides a persistent KeyValue store
 type KVStore struct {
 	DbFileName string

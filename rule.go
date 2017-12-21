@@ -8,11 +8,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/patrobinson/go-fish/output"
+	"github.com/patrobinson/go-fish/state"
 )
 
 // Rule is an interface for rule implementations
 type Rule interface {
-	Init()
+	Init(state.State) error
 	Process(interface{}) interface{}
 	String() string
 	WindowInterval() int
@@ -27,7 +28,7 @@ type ruleConfig struct {
 	Sink   string `json:"sink,omitempty"`
 }
 
-func NewRule(config ruleConfig) (Rule, error) {
+func NewRule(config ruleConfig, s state.State) (Rule, error) {
 	plug, err := plugin.Open(config.Plugin)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to load plugin %s: %s", config.Plugin, err)
@@ -40,7 +41,9 @@ func NewRule(config ruleConfig) (Rule, error) {
 	if !ok {
 		return nil, errors.New("Rule is not a rule type")
 	}
-	rule.Init()
+	if err := rule.Init(s); err != nil {
+		return nil, err
+	}
 	return rule, nil
 }
 
