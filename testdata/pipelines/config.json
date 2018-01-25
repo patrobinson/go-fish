@@ -20,7 +20,7 @@
   },
   "sources": {
     "fileInput": {
-      "type": "file",
+      "type": "File",
       "file_config": {
         "path": "testdata/pipelines/input/file.in"
       }
@@ -28,7 +28,7 @@
   },
   "sinks": {
     "fileOutput": {
-      "type": "file",
+      "type": "File",
       "file_config": {
         "path": "testdata/pipelines/output/file.out"
       }

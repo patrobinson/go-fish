@@ -34,7 +34,7 @@ func TestParseConfig(t *testing.T) {
 		},
 		Sources: map[string]input.SourceConfig{
 			"fileInput": input.SourceConfig{
-				Type: "file",
+				Type: "File",
 				FileConfig: input.FileConfig{
 					Path: "testdata/pipelines/input/file.in",
 				},
@@ -42,7 +42,7 @@ func TestParseConfig(t *testing.T) {
 		},
 		Sinks: map[string]output.SinkConfig{
 			"fileOutput": output.SinkConfig{
-				Type: "file",
+				Type: "File",
 				FileConfig: output.FileConfig{
 					Path: "testdata/pipelines/output/file.out",
 				},
@@ -59,6 +59,82 @@ func TestParseConfig(t *testing.T) {
 	}
 }
 
-//func TestNewPipeline(t *testing.T) {}
+func TestNewPipeline(t *testing.T) {
+	pipelineConfig := PipelineConfig{
+		EventFolder: "testdata/eventTypes",
+		Rules: map[string]ruleConfig{
+			"aRule": ruleConfig{
+				Source: "fileInput",
+				Plugin: "testdata/rules/a.so",
+				Sink:   "fileOutput",
+			},
+			"lengthRule": ruleConfig{
+				Source: "fileInput",
+				Plugin: "testdata/rules/length.so",
+				Sink:   "fileOutput",
+			},
+		},
+		Sources: map[string]input.SourceConfig{
+			"fileInput": input.SourceConfig{
+				Type: "File",
+				FileConfig: input.FileConfig{
+					Path: "testdata/pipelines/input",
+				},
+			},
+		},
+		Sinks: map[string]output.SinkConfig{
+			"fileOutput": output.SinkConfig{
+				Type: "File",
+				FileConfig: output.FileConfig{
+					Path: "testdata/pipelines/output",
+				},
+			},
+		},
+	}
+	_, err := NewPipeline(pipelineConfig)
+	if err != nil {
+		t.Errorf("Error creating new pipeline: %s", err)
+	}
+}
 
-//func TestStartPipeline(t *testing.T) {}
+func TestStartPipeline(t *testing.T) {
+	pipelineConfig := PipelineConfig{
+		EventFolder: "testdata/eventTypes",
+		Rules: map[string]ruleConfig{
+			"aRule": ruleConfig{
+				Source: "fileInput",
+				Plugin: "testdata/rules/a.so",
+				Sink:   "fileOutput",
+			},
+			"lengthRule": ruleConfig{
+				Source: "fileInput",
+				Plugin: "testdata/rules/length.so",
+				Sink:   "fileOutput",
+			},
+		},
+		Sources: map[string]input.SourceConfig{
+			"fileInput": input.SourceConfig{
+				Type: "File",
+				FileConfig: input.FileConfig{
+					Path: "testdata/pipelines/input",
+				},
+			},
+		},
+		Sinks: map[string]output.SinkConfig{
+			"fileOutput": output.SinkConfig{
+				Type: "File",
+				FileConfig: output.FileConfig{
+					Path: "testdata/pipelines/output",
+				},
+			},
+		},
+	}
+	p, err := NewPipeline(pipelineConfig)
+	if err != nil {
+		t.Errorf("Error creating new pipeline: %s", err)
+	}
+	err = p.StartPipeline()
+	if err != nil {
+		t.Errorf("Error starting pipeline: %s", err)
+	}
+}
