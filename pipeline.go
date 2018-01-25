@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"encoding/json"
 	"io"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"reflect"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/patrobinson/go-fish/input"
@@ -31,26 +33,53 @@ func parseConfig(configFile io.Reader) (PipelineConfig, error) {
 	return config, err
 }
 
-func validateConfig(config PipelineConfig) {
+func validateConfig(config PipelineConfig) error {
+	// Validate that any Sources, Sinks and States a Rule points to exist
 	for ruleName, rule := range config.Rules {
 		if _, ok := config.Sources[rule.Source]; !ok {
-			log.Fatalf("Invalid source for rule %s: %s", ruleName, rule.Source)
+			return fmt.Errorf("Invalid source for rule %s: %s", ruleName, rule.Source)
 		}
 
 		_, ok := config.Sinks[rule.Sink]
 		if rule.Sink != "" && !ok {
-			log.Fatalf("Invalid sink for rule %s: %s", ruleName, rule.Sink)
+			return fmt.Errorf("Invalid sink for rule %s: %s", ruleName, rule.Sink)
 		}
 
 		_, ok = config.States[rule.State]
 		if rule.State != "" && !ok {
-			log.Fatalf("Invalid state for rule %s: %s", ruleName, rule.State)
+			return fmt.Errorf("Invalid state for rule %s: %s", ruleName, rule.State)
 		}
 
 		if _, err := os.Stat(rule.Plugin); err != nil {
-			log.Fatalf("Invalid plugin: %s", err)
+			return fmt.Errorf("Invalid plugin: %s", err)
 		}
 	}
+
+	// Validate there are no naming conflicts
+	var keys []reflect.Value
+	keys = append(keys, reflect.ValueOf(config.Sources).MapKeys()...)
+	keys = append(keys, reflect.ValueOf(config.Rules).MapKeys()...)
+	keys = append(keys, reflect.ValueOf(config.Sinks).MapKeys()...)
+	keys = append(keys, reflect.ValueOf(config.States).MapKeys()...)
+	duplicates := findDuplicates(keys)
+	if len(duplicates) > 0 {
+		return fmt.Errorf("Invalid configuration, duplicate keys: %s", duplicates)
+	}
+
+	return nil
+}
+
+func findDuplicates(s []reflect.Value) []string {
+	var result []string
+	strings := make(map[string]bool)
+	for _, str := range s {
+		if strings[str.String()] == true {
+			result = append(result, str.String())
+		} else {
+			strings[str.String()] = true
+		}
+	}
+	return result
 }
 
 // Pipeline is a Directed Acyclic Graph

@@ -97,6 +97,39 @@ func TestNewPipeline(t *testing.T) {
 	}
 }
 
+func TestNewPipelineWithDuplicateKeys(t *testing.T) {
+	pipelineConfig := PipelineConfig{
+		EventFolder: "testdata/eventTypes",
+		Rules: map[string]ruleConfig{
+			"aRule": ruleConfig{
+				Source: "aRule",
+				Plugin: "testdata/rules/a.so",
+				Sink:   "fileOutput",
+			},
+		},
+		Sources: map[string]input.SourceConfig{
+			"aRule": input.SourceConfig{
+				Type: "File",
+				FileConfig: input.FileConfig{
+					Path: "testdata/pipelines/input",
+				},
+			},
+		},
+		Sinks: map[string]output.SinkConfig{
+			"fileOutput": output.SinkConfig{
+				Type: "File",
+				FileConfig: output.FileConfig{
+					Path: "testdata/pipelines/output",
+				},
+			},
+		},
+	}
+	err := validateConfig(pipelineConfig)
+	if err.Error() != "Invalid configuration, duplicate keys: [aRule]" {
+		t.Errorf("Expected pipeline with duplicate keys to raise error, but got: %s", err)
+	}
+}
+
 func TestStartPipeline(t *testing.T) {
 	pipelineConfig := PipelineConfig{
 		EventFolder: "testdata/eventTypes",
@@ -124,7 +157,7 @@ func TestStartPipeline(t *testing.T) {
 			"fileOutput": output.SinkConfig{
 				Type: "File",
 				FileConfig: output.FileConfig{
-					Path: "testdata/pipelines/output",
+					Path: "testdata/output",
 				},
 			},
 		},
