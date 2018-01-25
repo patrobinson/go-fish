@@ -10,45 +10,48 @@ import (
 	"github.com/patrobinson/go-fish/state"
 )
 
+var basicPipelineConfig = PipelineConfig{
+	EventFolder: "testdata/eventTypes",
+	Rules: map[string]ruleConfig{
+		"searchRule": ruleConfig{
+			Source: "fileInput",
+			State:  "searchConversion",
+			Plugin: "testdata/rules/a.so",
+			Sink:   "fileOutput",
+		},
+		"conversionRule": ruleConfig{
+			Source: "fileInput",
+			State:  "searchConversion",
+			Plugin: "testdata/rules/length.so",
+			Sink: "fileOutput",
+		},
+	},
+	States: map[string]state.StateConfig{
+		"searchConversion": state.StateConfig{
+			Type: "KV",
+		},
+	},
+	Sources: map[string]input.SourceConfig{
+		"fileInput": input.SourceConfig{
+			Type: "File",
+			FileConfig: input.FileConfig{
+				Path: "testdata/pipelines/input",
+			},
+		},
+	},
+	Sinks: map[string]output.SinkConfig{
+		"fileOutput": output.SinkConfig{
+			Type: "File",
+			FileConfig: output.FileConfig{
+				Path: "testdata/output",
+			},
+		},
+	},
+}
+
 func TestParseConfig(t *testing.T) {
 	testdata, _ := os.Open("testdata/pipelines/config.json")
-	expectedConfig := PipelineConfig{
-		EventFolder: "testdata/eventTypes",
-		Rules: map[string]ruleConfig{
-			"searchRule": ruleConfig{
-				Source: "fileInput",
-				State:  "searchConversion",
-				Plugin: "testdata/rules/search_rule.so",
-				Sink:   "fileOutput",
-			},
-			"conversionRule": ruleConfig{
-				Source: "fileInput",
-				State:  "searchConversion",
-				Plugin: "testdata/rules/conversion_rule.so",
-			},
-		},
-		States: map[string]state.StateConfig{
-			"searchConversion": state.StateConfig{
-				Type: "kv",
-			},
-		},
-		Sources: map[string]input.SourceConfig{
-			"fileInput": input.SourceConfig{
-				Type: "File",
-				FileConfig: input.FileConfig{
-					Path: "testdata/pipelines/input/file.in",
-				},
-			},
-		},
-		Sinks: map[string]output.SinkConfig{
-			"fileOutput": output.SinkConfig{
-				Type: "File",
-				FileConfig: output.FileConfig{
-					Path: "testdata/pipelines/output/file.out",
-				},
-			},
-		},
-	}
+	expectedConfig := basicPipelineConfig
 
 	parsedConfig, err := parseConfig(testdata)
 	if err != nil {
@@ -60,38 +63,7 @@ func TestParseConfig(t *testing.T) {
 }
 
 func TestNewPipeline(t *testing.T) {
-	pipelineConfig := PipelineConfig{
-		EventFolder: "testdata/eventTypes",
-		Rules: map[string]ruleConfig{
-			"aRule": ruleConfig{
-				Source: "fileInput",
-				Plugin: "testdata/rules/a.so",
-				Sink:   "fileOutput",
-			},
-			"lengthRule": ruleConfig{
-				Source: "fileInput",
-				Plugin: "testdata/rules/length.so",
-				Sink:   "fileOutput",
-			},
-		},
-		Sources: map[string]input.SourceConfig{
-			"fileInput": input.SourceConfig{
-				Type: "File",
-				FileConfig: input.FileConfig{
-					Path: "testdata/pipelines/input",
-				},
-			},
-		},
-		Sinks: map[string]output.SinkConfig{
-			"fileOutput": output.SinkConfig{
-				Type: "File",
-				FileConfig: output.FileConfig{
-					Path: "testdata/pipelines/output",
-				},
-			},
-		},
-	}
-	_, err := NewPipeline(pipelineConfig)
+	_, err := NewPipeline(basicPipelineConfig)
 	if err != nil {
 		t.Errorf("Error creating new pipeline: %s", err)
 	}
@@ -104,7 +76,6 @@ func TestNewPipelineWithDuplicateKeys(t *testing.T) {
 			"aRule": ruleConfig{
 				Source: "aRule",
 				Plugin: "testdata/rules/a.so",
-				Sink:   "fileOutput",
 			},
 		},
 		Sources: map[string]input.SourceConfig{
@@ -112,14 +83,6 @@ func TestNewPipelineWithDuplicateKeys(t *testing.T) {
 				Type: "File",
 				FileConfig: input.FileConfig{
 					Path: "testdata/pipelines/input",
-				},
-			},
-		},
-		Sinks: map[string]output.SinkConfig{
-			"fileOutput": output.SinkConfig{
-				Type: "File",
-				FileConfig: output.FileConfig{
-					Path: "testdata/pipelines/output",
 				},
 			},
 		},
@@ -131,38 +94,7 @@ func TestNewPipelineWithDuplicateKeys(t *testing.T) {
 }
 
 func TestStartPipeline(t *testing.T) {
-	pipelineConfig := PipelineConfig{
-		EventFolder: "testdata/eventTypes",
-		Rules: map[string]ruleConfig{
-			"aRule": ruleConfig{
-				Source: "fileInput",
-				Plugin: "testdata/rules/a.so",
-				Sink:   "fileOutput",
-			},
-			"lengthRule": ruleConfig{
-				Source: "fileInput",
-				Plugin: "testdata/rules/length.so",
-				Sink:   "fileOutput",
-			},
-		},
-		Sources: map[string]input.SourceConfig{
-			"fileInput": input.SourceConfig{
-				Type: "File",
-				FileConfig: input.FileConfig{
-					Path: "testdata/pipelines/input",
-				},
-			},
-		},
-		Sinks: map[string]output.SinkConfig{
-			"fileOutput": output.SinkConfig{
-				Type: "File",
-				FileConfig: output.FileConfig{
-					Path: "testdata/output",
-				},
-			},
-		},
-	}
-	p, err := NewPipeline(pipelineConfig)
+	p, err := NewPipeline(basicPipelineConfig)
 	if err != nil {
 		t.Errorf("Error creating new pipeline: %s", err)
 	}
