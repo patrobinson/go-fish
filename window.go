@@ -8,8 +8,8 @@ import (
 )
 
 type windowManager struct {
-	rules   []windowConfig
-	outChan *chan interface{}
+	rules    []windowConfig
+	sinkChan *chan interface{}
 	sync.RWMutex
 }
 
@@ -43,7 +43,7 @@ func (w *windowManager) windowRunner(ruleConfig *windowConfig) {
 			log.Errorf("Error calling Window() on rule %v: %v", ruleConfig.rule.String(), err)
 		}
 		for _, o := range outputs {
-			*w.outChan <- o
+			*w.sinkChan <- o
 		}
 		ruleConfig.lastCalled = time.Now()
 	}

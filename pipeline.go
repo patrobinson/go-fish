@@ -1,14 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
+	"reflect"
 	"sync"
 	"syscall"
-	"reflect"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/patrobinson/go-fish/input"
@@ -102,14 +102,14 @@ type RuleMapper struct {
 }
 
 type SourceMapper struct {
-	InChannel *chan []byte
-	Source    input.Source
-	Rules     []*RuleMapper
+	SourceChannel *chan []byte
+	Source        input.Source
+	Rules         []*RuleMapper
 }
 
 type SinkMapper struct {
-	OutChannel *chan interface{}
-	Sink       output.Sink
+	SinkChannel *chan interface{}
+	Sink        output.Sink
 }
 
 func NewPipeline(config PipelineConfig) (*Pipeline, error) {
@@ -122,26 +122,26 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 	}
 
 	for name, sourceConfig := range config.Sources {
-		inChan := make(chan []byte)
+		sourceChan := make(chan []byte)
 		source, err := input.Create(sourceConfig)
 		if err != nil {
 			return nil, err
 		}
 		pipeline.Sources[name] = &SourceMapper{
-			InChannel: &inChan,
-			Source:    source,
+			SourceChannel: &sourceChan,
+			Source:        source,
 		}
 	}
 
 	for name, sinkConfig := range config.Sinks {
-		outChan := make(chan interface{})
+		sinkChan := make(chan interface{})
 		sink, err := output.Create(sinkConfig)
 		if err != nil {
 			return nil, err
 		}
 		pipeline.Sinks[name] = &SinkMapper{
-			OutChannel: &outChan,
-			Sink:       sink,
+			SinkChannel: &sinkChan,
+			Sink:        sink,
 		}
 	}
 
@@ -182,7 +182,7 @@ func (p *Pipeline) StartPipeline() error {
 	p.ruleWaitGroup = &sync.WaitGroup{}
 
 	for _, sink := range p.Sinks {
-		err := output.StartOutput(&sink.Sink, p.outWaitGroup, sink.OutChannel)
+		err := output.StartOutput(&sink.Sink, p.outWaitGroup, sink.SinkChannel)
 		if err != nil {
 			return err
 		}
@@ -191,13 +191,13 @@ func (p *Pipeline) StartPipeline() error {
 	for ruleName, rule := range p.Rules {
 		log.Infof("Starting rule %s", ruleName)
 		(*rule).WindowManager = &windowManager{
-			outChan: rule.Sink.OutChannel,
+			sinkChan: rule.Sink.SinkChannel,
 		}
-		(*rule).RuleInputChannel = startRule(rule.Rule, rule.Sink.OutChannel, p.ruleWaitGroup, rule.WindowManager)
+		(*rule).RuleInputChannel = startRule(rule.Rule, rule.Sink.SinkChannel, p.ruleWaitGroup, rule.WindowManager)
 	}
 
 	for _, source := range p.Sources {
-		err := input.StartInput(&source.Source, source.InChannel)
+		err := input.StartInput(&source.Source, source.SourceChannel)
 		if err != nil {
 			return err
 		}
@@ -223,7 +223,7 @@ func (p *Pipeline) Run() {
 					*ruleMap.RuleInputChannel <- evt
 				}
 			}
-		}(source.InChannel, source.Rules)
+		}(source.SourceChannel, source.Rules)
 	}
 
 	c := make(chan os.Signal, 1)
@@ -247,7 +247,7 @@ func (p *Pipeline) Close() {
 
 	log.Debug("Closing output channels\n")
 	for _, o := range p.Sinks {
-		close(*o.OutChannel)
+		close(*o.SinkChannel)
 	}
 	p.outWaitGroup.Wait()
 
