@@ -236,6 +236,12 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 		pipeline.Sources[ruleConfig.Source].Rules = append(pipeline.Sources[ruleConfig.Source].Rules, ruleMapping)
 	}
 
+	for sourceName, sourceConfig := range pipeline.Sources {
+		if sourceConfig.Source == nil {
+			log.Fatalln("Source", sourceName, "referred to but does not exist")
+		}
+	}
+
 	return pipeline, nil
 }
 
