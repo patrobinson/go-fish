@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/mitchellh/mapstructure"
 	"github.com/patrobinson/go-fish/output"
 	"github.com/patrobinson/go-fish/state"
 	es "github.com/patrobinson/go-fish/testdata/statefulIntegrationTests/eventStructs"
+	log "github.com/sirupsen/logrus"
 )
 
 type cloudTrailRule struct {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/Shopify/sarama/mocks"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func setupKafka(topic string, t *testing.T) *KafkaInput {

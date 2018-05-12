@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/patrobinson/go-fish/input"
 	"github.com/patrobinson/go-fish/output"
 	"github.com/patrobinson/go-fish/state"
+	log "github.com/sirupsen/logrus"
 )
 
 type testInput struct {
