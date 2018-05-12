@@ -36,13 +36,18 @@ func parseConfig(configFile io.Reader) (PipelineConfig, error) {
 func validateConfig(config PipelineConfig) error {
 	// Validate that any Sources, Sinks and States a Rule points to exist
 	for ruleName, rule := range config.Rules {
+		// TODO: Ensure a source exists
 		if _, ok := config.Sources[rule.Source]; !ok {
-			return fmt.Errorf("Invalid source for rule %s: %s", ruleName, rule.Source)
+			if _, ok := config.Rules[rule.Source]; !ok {
+				return fmt.Errorf("Invalid source for rule %s: %s", ruleName, rule.Source)
+			}
 		}
 
 		_, ok := config.Sinks[rule.Sink]
 		if rule.Sink != "" && !ok {
-			return fmt.Errorf("Invalid sink for rule %s: %s", ruleName, rule.Sink)
+			if _, ok := config.Rules[rule.Sink]; !ok {
+				return fmt.Errorf("Invalid sink for rule %s: %s", ruleName, rule.Sink)
+			}
 		}
 
 		_, ok = config.States[rule.State]
@@ -99,6 +104,7 @@ type RuleMapper struct {
 	RuleInputChannel *chan interface{}
 	WindowManager    *windowManager
 	State            *state.State
+	Rules            []*RuleMapper
 }
 
 type SourceMapper struct {
@@ -112,6 +118,30 @@ type SinkMapper struct {
 	Sink        output.Sink
 }
 
+func makeSource(sourceConfig input.SourceConfig) (*SourceMapper, error) {
+	sourceChan := make(chan []byte)
+	source, err := input.Create(sourceConfig)
+	if err != nil {
+		return nil, err
+	}
+	return &SourceMapper{
+		SourceChannel: &sourceChan,
+		Source:        source,
+	}, nil
+}
+
+func makeSink(sinkConfig output.SinkConfig) (*SinkMapper, error) {
+	sinkChan := make(chan interface{})
+	sink, err := output.Create(sinkConfig)
+	if err != nil {
+		return nil, err
+	}
+	return &SinkMapper{
+		SinkChannel: &sinkChan,
+		Sink:        sink,
+	}, nil
+}
+
 func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 	pipeline := &Pipeline{
 		eventFolder: config.EventFolder,
@@ -121,39 +151,31 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 		Sinks:       make(map[string]*SinkMapper),
 	}
 
-	for name, sourceConfig := range config.Sources {
-		sourceChan := make(chan []byte)
-		source, err := input.Create(sourceConfig)
-		if err != nil {
-			return nil, err
-		}
-		pipeline.Sources[name] = &SourceMapper{
-			SourceChannel: &sourceChan,
-			Source:        source,
-		}
-	}
-
-	for name, sinkConfig := range config.Sinks {
-		sinkChan := make(chan interface{})
-		sink, err := output.Create(sinkConfig)
-		if err != nil {
-			return nil, err
-		}
-		pipeline.Sinks[name] = &SinkMapper{
-			SinkChannel: &sinkChan,
-			Sink:        sink,
-		}
-	}
-
-	for name, stateConfig := range config.States {
+	for sourceName, sourceConfig := range config.Sources {
 		var err error
-		pipeline.States[name], err = state.Create(stateConfig)
+		pipeline.Sources[sourceName], err = makeSource(sourceConfig)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	for name, ruleConfig := range config.Rules {
+	for sinkName, sinkConfig := range config.Sinks {
+		var err error
+		pipeline.Sinks[sinkName], err = makeSink(sinkConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for stateName, stateConfig := range config.States {
+		var err error
+		pipeline.States[stateName], err = state.Create(stateConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for ruleName, ruleConfig := range config.Rules {
 		var ruleState state.State
 		if ruleConfig.State != "" {
 			ruleState = pipeline.States[ruleConfig.State]
@@ -165,12 +187,52 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		// If the sink is a rule
+		if _, ok := config.Rules[ruleConfig.Sink]; ok {
+			intermediateChan := make(chan interface{})
+			destinationRuleName := ruleConfig.Sink
+			var sourceRules []*RuleMapper
+			if sourceM, ok := pipeline.Sources[ruleName]; ok {
+				sourceRules = sourceM.Rules
+			}
+			pipeline.Sources[ruleName], err = makeSource(input.SourceConfig{
+				Type: "Forward",
+				ForwarderConfig: input.ForwarderConfig{
+					ForwardToChannel: &intermediateChan,
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			// If the destination rule was created first, restore the rule mapper to the source we just created
+			pipeline.Sources[ruleName].Rules = sourceRules
+
+			pipeline.Sinks[destinationRuleName], err = makeSink(output.SinkConfig{
+				Type: "Forward",
+				ForwarderConfig: output.ForwarderConfig{
+					ForwardToChannel: &intermediateChan,
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			destinationRuleMapping := pipeline.Rules[destinationRuleName]
+			pipeline.Sources[ruleName].Rules = append(pipeline.Sources[ruleName].Rules, destinationRuleMapping)
+		}
+
 		ruleMapping := &RuleMapper{
 			Rule: rule,
 			Sink: pipeline.Sinks[ruleConfig.Sink],
 		}
 
-		pipeline.Rules[name] = ruleMapping
+		pipeline.Rules[ruleName] = ruleMapping
+		if _, ok := pipeline.Sources[ruleConfig.Source]; !ok {
+			// In the case the Source is another Rule, the source may not exist yet
+			pipeline.Sources[ruleConfig.Source] = &SourceMapper{}
+		}
 		pipeline.Sources[ruleConfig.Source].Rules = append(pipeline.Sources[ruleConfig.Source].Rules, ruleMapping)
 	}
 
@@ -196,8 +258,9 @@ func (p *Pipeline) StartPipeline() error {
 		(*rule).RuleInputChannel = startRule(rule.Rule, rule.Sink.SinkChannel, p.ruleWaitGroup, rule.WindowManager)
 	}
 
-	for _, source := range p.Sources {
-		err := input.StartInput(&source.Source, source.SourceChannel)
+	for sourceName, source := range p.Sources {
+		log.Infoln("Starting source", sourceName)
+		err := input.StartInput((*source).Source, (*source).SourceChannel)
 		if err != nil {
 			return err
 		}

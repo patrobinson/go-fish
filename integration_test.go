@@ -71,8 +71,8 @@ func setupBasicPipeline(output *chan bool, input string) (*Pipeline, error) {
 
 	outChan := make(chan interface{})
 	testSinkMapper := &SinkMapper{
-		OutChannel: &outChan,
-		Sink:       testOutput,
+		SinkChannel: &outChan,
+		Sink:        testOutput,
 	}
 
 	aRuleMapper := &RuleMapper{
@@ -103,9 +103,9 @@ func setupPipeline(ruleMappings map[string]*RuleMapper, testInput input.Source, 
 		Rules: ruleMappings,
 		Sources: map[string]*SourceMapper{
 			"testInput": &SourceMapper{
-				InChannel: &inChan,
-				Source:    testInput,
-				Rules:     ruleMapSlice,
+				SourceChannel: &inChan,
+				Source:        testInput,
+				Rules:         ruleMapSlice,
 			},
 		},
 		Sinks: map[string]*SinkMapper{
@@ -195,8 +195,8 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 	}
 	outSink := make(chan interface{})
 	testSinkMapper := &SinkMapper{
-		OutChannel: &outSink,
-		Sink:       out,
+		SinkChannel: &outSink,
+		Sink:        out,
 	}
 	ruleState := &state.KVStore{
 		DbFileName: "s2s.db",
@@ -320,8 +320,8 @@ func TestAggregateStateIntegration(t *testing.T) {
 	}
 	outSink := make(chan interface{})
 	testSinkMapper := &SinkMapper{
-		OutChannel: &outSink,
-		Sink:       out,
+		SinkChannel: &outSink,
+		Sink:        out,
 	}
 	ruleState := &state.KVStore{
 		DbFileName: "agg.db",

@@ -9,6 +9,7 @@ type SinkConfig struct {
 	Type       string     `json:"type"`
 	FileConfig FileConfig `json:"file_config,omitempty"`
 	SqsConfig  SqsConfig  `json:"sqs_config,omitempty"`
+	ForwarderConfig ForwarderConfig
 }
 
 // Sink is an interface for output implementations
@@ -27,6 +28,10 @@ func Create(config SinkConfig) (Sink, error) {
 	case "File":
 		return &FileOutput{
 			FileName: config.FileConfig.Path,
+		}, nil
+	case "Forward":
+		return &ForwarderOutput{
+			ForwardToChannel: config.ForwarderConfig.ForwardToChannel,
 		}, nil
 	}
 

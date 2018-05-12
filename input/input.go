@@ -11,10 +11,11 @@ type Source interface {
 }
 
 type SourceConfig struct {
-	Type          string        `json:"type"`
-	FileConfig    FileConfig    `json:"file_config,omitempty"`
-	KinesisConfig KinesisConfig `json:"kinesis_config,omitempty"`
-	KafkaConfig   KafkaConfig   `json:"kafka_config,omitempty"`
+	Type            string        `json:"type"`
+	FileConfig      FileConfig    `json:"file_config,omitempty"`
+	KinesisConfig   KinesisConfig `json:"kinesis_config,omitempty"`
+	KafkaConfig     KafkaConfig   `json:"kafka_config,omitempty"`
+	ForwarderConfig ForwarderConfig
 }
 
 func Create(config SourceConfig) (Source, error) {
@@ -33,15 +34,19 @@ func Create(config SourceConfig) (Source, error) {
 		return &FileInput{FileName: config.FileConfig.Path}, nil
 	case "CertStream":
 		return &CertStreamInput{}, nil
+	case "Forward":
+		return &ForwarderInput{
+			ForwardToChannel: config.ForwarderConfig.ForwardToChannel,
+		}, nil
 	}
 	return nil, fmt.Errorf("Invalid input type: %v", config.Type)
 }
 
-func StartInput(in *Source, inChan *chan []byte) error {
-	err := (*in).Init()
+func StartInput(in Source, inChan *chan []byte) error {
+	err := in.Init()
 	if err != nil {
 		return fmt.Errorf("Input setup failed: %v", err)
 	}
-	go (*in).Retrieve(inChan)
+	go in.Retrieve(inChan)
 	return nil
 }

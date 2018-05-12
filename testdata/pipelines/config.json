@@ -5,10 +5,10 @@
       "source": "fileInput",
       "state": "searchConversion",
       "plugin": "testdata/rules/a.so",
-      "sink": "fileOutput"
+      "sink": "conversionRule"
     },
     "conversionRule": {
-      "source": "fileInput",
+      "source": "searchRule",
       "plugin": "testdata/rules/length.so",
       "state": "searchConversion",
       "sink": "fileOutput"
