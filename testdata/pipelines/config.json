@@ -4,33 +4,34 @@
     "searchRule": {
       "source": "fileInput",
       "state": "searchConversion",
-      "plugin": "testdata/rules/search_rule.so",
-      "sink": "fileOutput"
+      "plugin": "testdata/rules/a.so",
+      "sink": "conversionRule"
     },
     "conversionRule": {
-      "source": "fileInput",
-      "plugin": "testdata/rules/conversion_rule.so",
-      "state": "searchConversion"
+      "source": "searchRule",
+      "plugin": "testdata/rules/length.so",
+      "state": "searchConversion",
+      "sink": "fileOutput"
     }
   },
   "states": {
     "searchConversion": {
-      "type": "kv"
+      "type": "KV"
     }
   },
   "sources": {
     "fileInput": {
-      "type": "file",
+      "type": "File",
       "file_config": {
-        "path": "testdata/pipelines/input/file.in"
+        "path": "testdata/pipelines/input"
       }
     }
   },
   "sinks": {
     "fileOutput": {
-      "type": "file",
+      "type": "File",
       "file_config": {
-        "path": "testdata/pipelines/output/file.out"
+        "path": "testdata/output"
       }
     }
   }

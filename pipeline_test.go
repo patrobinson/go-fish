@@ -10,45 +10,67 @@ import (
 	"github.com/patrobinson/go-fish/state"
 )
 
-func TestParseConfig(t *testing.T) {
-	testdata, _ := os.Open("testdata/pipelines/config.json")
-	expectedConfig := PipelineConfig{
+var basicRuleConfig = map[string]ruleConfig{
+	"searchRule": ruleConfig{
+		Source: "fileInput",
+		State:  "searchConversion",
+		Plugin: "testdata/rules/a.so",
+		Sink:   "fileOutput",
+	},
+	"conversionRule": ruleConfig{
+		Source: "fileInput",
+		State:  "searchConversion",
+		Plugin: "testdata/rules/length.so",
+		Sink:   "fileOutput",
+	},
+}
+
+var pipelineRuleConfig = map[string]ruleConfig{
+	"searchRule": ruleConfig{
+		Source: "fileInput",
+		State:  "searchConversion",
+		Plugin: "testdata/rules/a.so",
+		Sink:   "conversionRule",
+	},
+	"conversionRule": ruleConfig{
+		Source: "searchRule",
+		State:  "searchConversion",
+		Plugin: "testdata/rules/length.so",
+		Sink:   "fileOutput",
+	},
+}
+
+func makePipeline(rc map[string]ruleConfig) PipelineConfig {
+	return PipelineConfig{
 		EventFolder: "testdata/eventTypes",
-		Rules: map[string]ruleConfig{
-			"searchRule": ruleConfig{
-				Source: "fileInput",
-				State:  "searchConversion",
-				Plugin: "testdata/rules/search_rule.so",
-				Sink:   "fileOutput",
-			},
-			"conversionRule": ruleConfig{
-				Source: "fileInput",
-				State:  "searchConversion",
-				Plugin: "testdata/rules/conversion_rule.so",
-			},
-		},
+		Rules:       rc,
 		States: map[string]state.StateConfig{
 			"searchConversion": state.StateConfig{
-				Type: "kv",
+				Type: "KV",
 			},
 		},
 		Sources: map[string]input.SourceConfig{
 			"fileInput": input.SourceConfig{
-				Type: "file",
+				Type: "File",
 				FileConfig: input.FileConfig{
-					Path: "testdata/pipelines/input/file.in",
+					Path: "testdata/pipelines/input",
 				},
 			},
 		},
 		Sinks: map[string]output.SinkConfig{
 			"fileOutput": output.SinkConfig{
-				Type: "file",
+				Type: "File",
 				FileConfig: output.FileConfig{
-					Path: "testdata/pipelines/output/file.out",
+					Path: "testdata/output",
 				},
 			},
 		},
 	}
+}
+
+func TestParseConfig(t *testing.T) {
+	testdata, _ := os.Open("testdata/pipelines/config.json")
+	expectedConfig := makePipeline(pipelineRuleConfig)
 
 	parsedConfig, err := parseConfig(testdata)
 	if err != nil {
@@ -59,6 +81,55 @@ func TestParseConfig(t *testing.T) {
 	}
 }
 
-//func TestNewPipeline(t *testing.T) {}
+func TestNewPipeline(t *testing.T) {
+	_, err := NewPipeline(makePipeline(basicRuleConfig))
+	if err != nil {
+		t.Errorf("Error creating new pipeline: %s", err)
+	}
+}
 
-//func TestStartPipeline(t *testing.T) {}
+func TestNewPipelineWithDuplicateKeys(t *testing.T) {
+	pipelineConfig := PipelineConfig{
+		EventFolder: "testdata/eventTypes",
+		Rules: map[string]ruleConfig{
+			"aRule": ruleConfig{
+				Source: "aRule",
+				Plugin: "testdata/rules/a.so",
+			},
+		},
+		Sources: map[string]input.SourceConfig{
+			"aRule": input.SourceConfig{
+				Type: "File",
+				FileConfig: input.FileConfig{
+					Path: "testdata/pipelines/input",
+				},
+			},
+		},
+	}
+	err := validateConfig(pipelineConfig)
+	if err.Error() != "Invalid configuration, duplicate keys: [aRule]" {
+		t.Errorf("Expected pipeline with duplicate keys to raise error, but got: %s", err)
+	}
+}
+
+func TestStartBasicPipeline(t *testing.T) {
+	p, err := NewPipeline(makePipeline(basicRuleConfig))
+	if err != nil {
+		t.Fatalf("Error creating new pipeline: %s", err)
+	}
+	err = p.StartPipeline()
+	if err != nil {
+		t.Errorf("Error starting pipeline: %s", err)
+	}
+}
+
+func TestStartForwardPipeline(t *testing.T) {
+	p, err := NewPipeline(makePipeline(pipelineRuleConfig))
+	if err != nil {
+		t.Fatalf("Error creating new pipeline: %s", err)
+	}
+	err = p.StartPipeline()
+	if err != nil {
+		t.Errorf("Error starting pipeline: %s", err)
+	}
+}

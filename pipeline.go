@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
+	"reflect"
 	"sync"
 	"syscall"
 
@@ -31,26 +33,58 @@ func parseConfig(configFile io.Reader) (PipelineConfig, error) {
 	return config, err
 }
 
-func validateConfig(config PipelineConfig) {
+func validateConfig(config PipelineConfig) error {
+	// Validate that any Sources, Sinks and States a Rule points to exist
 	for ruleName, rule := range config.Rules {
+		// TODO: Ensure a source exists
 		if _, ok := config.Sources[rule.Source]; !ok {
-			log.Fatalf("Invalid source for rule %s: %s", ruleName, rule.Source)
+			if _, ok := config.Rules[rule.Source]; !ok {
+				return fmt.Errorf("Invalid source for rule %s: %s", ruleName, rule.Source)
+			}
 		}
 
 		_, ok := config.Sinks[rule.Sink]
 		if rule.Sink != "" && !ok {
-			log.Fatalf("Invalid sink for rule %s: %s", ruleName, rule.Sink)
+			if _, ok := config.Rules[rule.Sink]; !ok {
+				return fmt.Errorf("Invalid sink for rule %s: %s", ruleName, rule.Sink)
+			}
 		}
 
 		_, ok = config.States[rule.State]
 		if rule.State != "" && !ok {
-			log.Fatalf("Invalid state for rule %s: %s", ruleName, rule.State)
+			return fmt.Errorf("Invalid state for rule %s: %s", ruleName, rule.State)
 		}
 
 		if _, err := os.Stat(rule.Plugin); err != nil {
-			log.Fatalf("Invalid plugin: %s", err)
+			return fmt.Errorf("Invalid plugin: %s", err)
 		}
 	}
+
+	// Validate there are no naming conflicts
+	var keys []reflect.Value
+	keys = append(keys, reflect.ValueOf(config.Sources).MapKeys()...)
+	keys = append(keys, reflect.ValueOf(config.Rules).MapKeys()...)
+	keys = append(keys, reflect.ValueOf(config.Sinks).MapKeys()...)
+	keys = append(keys, reflect.ValueOf(config.States).MapKeys()...)
+	duplicates := findDuplicates(keys)
+	if len(duplicates) > 0 {
+		return fmt.Errorf("Invalid configuration, duplicate keys: %s", duplicates)
+	}
+
+	return nil
+}
+
+func findDuplicates(s []reflect.Value) []string {
+	var result []string
+	strings := make(map[string]bool)
+	for _, str := range s {
+		if strings[str.String()] == true {
+			result = append(result, str.String())
+		} else {
+			strings[str.String()] = true
+		}
+	}
+	return result
 }
 
 // Pipeline is a Directed Acyclic Graph
@@ -70,17 +104,42 @@ type RuleMapper struct {
 	RuleInputChannel *chan interface{}
 	WindowManager    *windowManager
 	State            *state.State
+	Rules            []*RuleMapper
 }
 
 type SourceMapper struct {
-	InChannel *chan []byte
-	Source    input.Source
-	Rules     []*RuleMapper
+	SourceChannel *chan []byte
+	Source        input.Source
+	Rules         []*RuleMapper
 }
 
 type SinkMapper struct {
-	OutChannel *chan interface{}
-	Sink       output.Sink
+	SinkChannel *chan interface{}
+	Sink        output.Sink
+}
+
+func makeSource(sourceConfig input.SourceConfig) (*SourceMapper, error) {
+	sourceChan := make(chan []byte)
+	source, err := input.Create(sourceConfig)
+	if err != nil {
+		return nil, err
+	}
+	return &SourceMapper{
+		SourceChannel: &sourceChan,
+		Source:        source,
+	}, nil
+}
+
+func makeSink(sinkConfig output.SinkConfig) (*SinkMapper, error) {
+	sinkChan := make(chan interface{})
+	sink, err := output.Create(sinkConfig)
+	if err != nil {
+		return nil, err
+	}
+	return &SinkMapper{
+		SinkChannel: &sinkChan,
+		Sink:        sink,
+	}, nil
 }
 
 func NewPipeline(config PipelineConfig) (*Pipeline, error) {
@@ -92,39 +151,31 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 		Sinks:       make(map[string]*SinkMapper),
 	}
 
-	for name, sourceConfig := range config.Sources {
-		inChan := make(chan []byte)
-		source, err := input.Create(sourceConfig)
-		if err != nil {
-			return nil, err
-		}
-		pipeline.Sources[name] = &SourceMapper{
-			InChannel: &inChan,
-			Source:    source,
-		}
-	}
-
-	for name, sinkConfig := range config.Sinks {
-		outChan := make(chan interface{})
-		sink, err := output.Create(sinkConfig)
-		if err != nil {
-			return nil, err
-		}
-		pipeline.Sinks[name] = &SinkMapper{
-			OutChannel: &outChan,
-			Sink:       sink,
-		}
-	}
-
-	for name, stateConfig := range config.States {
+	for sourceName, sourceConfig := range config.Sources {
 		var err error
-		pipeline.States[name], err = state.Create(stateConfig)
+		pipeline.Sources[sourceName], err = makeSource(sourceConfig)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	for name, ruleConfig := range config.Rules {
+	for sinkName, sinkConfig := range config.Sinks {
+		var err error
+		pipeline.Sinks[sinkName], err = makeSink(sinkConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for stateName, stateConfig := range config.States {
+		var err error
+		pipeline.States[stateName], err = state.Create(stateConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for ruleName, ruleConfig := range config.Rules {
 		var ruleState state.State
 		if ruleConfig.State != "" {
 			ruleState = pipeline.States[ruleConfig.State]
@@ -136,13 +187,59 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		// If the sink is a rule
+		if _, ok := config.Rules[ruleConfig.Sink]; ok {
+			intermediateChan := make(chan interface{})
+			destinationRuleName := ruleConfig.Sink
+			var sourceRules []*RuleMapper
+			if sourceM, ok := pipeline.Sources[ruleName]; ok {
+				sourceRules = sourceM.Rules
+			}
+			pipeline.Sources[ruleName], err = makeSource(input.SourceConfig{
+				Type: "Forward",
+				ForwarderConfig: input.ForwarderConfig{
+					ForwardToChannel: &intermediateChan,
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			// If the destination rule was created first, restore the rule mapper to the source we just created
+			pipeline.Sources[ruleName].Rules = sourceRules
+
+			pipeline.Sinks[destinationRuleName], err = makeSink(output.SinkConfig{
+				Type: "Forward",
+				ForwarderConfig: output.ForwarderConfig{
+					ForwardToChannel: &intermediateChan,
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			destinationRuleMapping := pipeline.Rules[destinationRuleName]
+			pipeline.Sources[ruleName].Rules = append(pipeline.Sources[ruleName].Rules, destinationRuleMapping)
+		}
+
 		ruleMapping := &RuleMapper{
 			Rule: rule,
 			Sink: pipeline.Sinks[ruleConfig.Sink],
 		}
 
-		pipeline.Rules[name] = ruleMapping
+		pipeline.Rules[ruleName] = ruleMapping
+		if _, ok := pipeline.Sources[ruleConfig.Source]; !ok {
+			// In the case the Source is another Rule, the source may not exist yet
+			pipeline.Sources[ruleConfig.Source] = &SourceMapper{}
+		}
 		pipeline.Sources[ruleConfig.Source].Rules = append(pipeline.Sources[ruleConfig.Source].Rules, ruleMapping)
+	}
+
+	for sourceName, sourceConfig := range pipeline.Sources {
+		if sourceConfig.Source == nil {
+			log.Fatalln("Source", sourceName, "referred to but does not exist")
+		}
 	}
 
 	return pipeline, nil
@@ -153,7 +250,7 @@ func (p *Pipeline) StartPipeline() error {
 	p.ruleWaitGroup = &sync.WaitGroup{}
 
 	for _, sink := range p.Sinks {
-		err := output.StartOutput(&sink.Sink, p.outWaitGroup, sink.OutChannel)
+		err := output.StartOutput(&sink.Sink, p.outWaitGroup, sink.SinkChannel)
 		if err != nil {
 			return err
 		}
@@ -162,13 +259,14 @@ func (p *Pipeline) StartPipeline() error {
 	for ruleName, rule := range p.Rules {
 		log.Infof("Starting rule %s", ruleName)
 		(*rule).WindowManager = &windowManager{
-			outChan: rule.Sink.OutChannel,
+			sinkChan: rule.Sink.SinkChannel,
 		}
-		(*rule).RuleInputChannel = startRule(rule.Rule, rule.Sink.OutChannel, p.ruleWaitGroup, rule.WindowManager)
+		(*rule).RuleInputChannel = startRule(rule.Rule, rule.Sink.SinkChannel, p.ruleWaitGroup, rule.WindowManager)
 	}
 
-	for _, source := range p.Sources {
-		err := input.StartInput(&source.Source, source.InChannel)
+	for sourceName, source := range p.Sources {
+		log.Infoln("Starting source", sourceName)
+		err := input.StartInput((*source).Source, (*source).SourceChannel)
 		if err != nil {
 			return err
 		}
@@ -194,7 +292,7 @@ func (p *Pipeline) Run() {
 					*ruleMap.RuleInputChannel <- evt
 				}
 			}
-		}(source.InChannel, source.Rules)
+		}(source.SourceChannel, source.Rules)
 	}
 
 	c := make(chan os.Signal, 1)
@@ -218,7 +316,7 @@ func (p *Pipeline) Close() {
 
 	log.Debug("Closing output channels\n")
 	for _, o := range p.Sinks {
-		close(*o.OutChannel)
+		close(*o.SinkChannel)
 	}
 	p.outWaitGroup.Wait()
 

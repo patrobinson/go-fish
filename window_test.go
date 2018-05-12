@@ -38,7 +38,7 @@ func TestWindowManager(t *testing.T) {
 	testRule := &TestRule{}
 	outChan := make(chan interface{})
 	manager := &windowManager{
-		outChan: &outChan,
+		sinkChan: &outChan,
 	}
 	config := &windowConfig{
 		rule:     testRule,

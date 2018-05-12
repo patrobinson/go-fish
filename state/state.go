@@ -26,7 +26,7 @@ func Create(config StateConfig) (State, error) {
 		return &Counter{}, nil
 	}
 
-	return nil, fmt.Errorf("Invalid output type: %v", config.Type)
+	return nil, fmt.Errorf("Invalid state type: %v", config.Type)
 }
 
 func StartState(state *State) error {

@@ -1,2 +1,4 @@
 /go-fish
 *.so
+/testdata/output
+*.db

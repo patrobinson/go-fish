@@ -48,6 +48,56 @@ See `examples/` for some implementations of go-fish. You can with the following 
 make certstream-example
 ```
 
+### Defining a Pipeline
+
+A Pipeline contains four top level keys, `eventFolder`, `rules`, `states`, `sources` and `sinks`. In a rule definition the source, state and sink should refer to a key in the respective top level.
+
+```json
+{
+  "eventFolder": "testdata/eventTypes",
+  "rules": {
+    "searchRule": {
+      "source": "fileInput",
+      "state": "searchConversion",
+      "plugin": "rules/searchRule.so",
+      "sink": "conversionRule"
+    },
+    "conversionRule": {
+      "source": "searchRule",
+      "plugin": "rules/conversionRule.so",
+      "sink": "fileOutput"
+    }
+  },
+  "states": {
+    "searchConversion": {
+      "type": "KV"
+    }
+  },
+  "sources": {
+    "fileInput": {
+      "type": "File",
+      "file_config": {
+        "path": "testdata/pipelines/input"
+      }
+    }
+  },
+  "sinks": {
+    "fileOutput": {
+      "type": "File",
+      "file_config": {
+        "path": "testdata/output"
+      }
+    }
+  }
+}
+```
+
+This Pipeline would create a Directed Acyclical Graph like so:
+
+```
+fileInput ----> searchRule ----> conversionRule ----> fileOutput
+```
+
 ### Creating an Event Struct
 
 The Event Struct can simply defines the data structure for the event and implements the `event` interface. This is a trivial example where the event contains just a single string:
