@@ -1,7 +1,7 @@
 package input
 
-import(
-	log "github.com/Sirupsen/logrus"
+import (
+	log "github.com/sirupsen/logrus"
 )
 
 type ForwarderConfig struct {
