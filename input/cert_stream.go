@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 
 	certstream "github.com/CaliDog/certstream-go"
-	log "github.com/Sirupsen/logrus"
 	"github.com/jmoiron/jsonq"
+	log "github.com/sirupsen/logrus"
 )
 
 // CertStreamInput provides a stream of Certificate Transparency Logs https://www.certificate-transparency.org/

@@ -6,9 +6,9 @@ import (
 	"plugin"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/patrobinson/go-fish/output"
 	"github.com/patrobinson/go-fish/state"
+	log "github.com/sirupsen/logrus"
 )
 
 // Rule is an interface for rule implementations

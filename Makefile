@@ -15,8 +15,9 @@ build-testdata:
 
 check test tests: build-testdata
 	@go test -short -timeout $(TIMEOUT)s ./...
+	rm *.db
 
-integration: build-testdata
+integration: get build-testdata
 	cd testdata/statefulIntegrationTests/s2s_rules && go get || true
 	GOOS=$(GOOS) go build -buildmode=plugin -o testdata/statefulIntegrationTests/s2s_rules/cloudTrail_s2s_join.so testdata/statefulIntegrationTests/s2s_rules/cloudTrail_s2s_join.go
 	GOOS=$(GOOS) go build -buildmode=plugin -o testdata/statefulIntegrationTests/agg_rules/cloudTrail_agg.so testdata/statefulIntegrationTests/agg_rules/cloudTrail_agg.go
@@ -25,7 +26,7 @@ integration: build-testdata
 	rm *.db
 
 docker-integration:
-	docker run -ti --rm -v $(shell pwd):/go/src/github.com/patrobinson/go-fish -w /go/src/github.com/patrobinson/go-fish golang:1.8 make integration
+	docker-compose run gofish make integration
 
 build-certstream-example:
 	cd examples/certstream/rules && go get || true

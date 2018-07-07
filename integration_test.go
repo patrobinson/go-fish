@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/patrobinson/go-fish/input"
 	"github.com/patrobinson/go-fish/output"
 	"github.com/patrobinson/go-fish/state"
+	log "github.com/sirupsen/logrus"
 )
 
 type testInput struct {
@@ -199,7 +199,7 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 		Sink:        out,
 	}
 	ruleState := &state.KVStore{
-		DbFileName: "s2s.db",
+		DbFileName: "testdata/s2s.db",
 		BucketName: "s2s",
 	}
 	err := ruleState.Init()
@@ -324,7 +324,7 @@ func TestAggregateStateIntegration(t *testing.T) {
 		Sink:        out,
 	}
 	ruleState := &state.KVStore{
-		DbFileName: "agg.db",
+		DbFileName: "testdata/agg.db",
 		BucketName: "agg",
 	}
 	err := ruleState.Init()

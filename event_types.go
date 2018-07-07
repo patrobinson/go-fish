@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"plugin"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/patrobinson/go-fish/event"
+	log "github.com/sirupsen/logrus"
 )
 
 type eventType interface {

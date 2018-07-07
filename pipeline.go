@@ -3,17 +3,19 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"reflect"
 	"sync"
 	"syscall"
+	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/boltdb/bolt"
+	"github.com/google/uuid"
 	"github.com/patrobinson/go-fish/input"
 	"github.com/patrobinson/go-fish/output"
 	"github.com/patrobinson/go-fish/state"
+	log "github.com/sirupsen/logrus"
 )
 
 // PipelineConfig forms the basic configuration of our processor
@@ -25,10 +27,9 @@ type PipelineConfig struct {
 	Sinks       map[string]output.SinkConfig  `json:"sinks"`
 }
 
-func parseConfig(configFile io.Reader) (PipelineConfig, error) {
+func parseConfig(rawConfig []byte) (PipelineConfig, error) {
 	var config PipelineConfig
-	jsonParser := json.NewDecoder(configFile)
-	err := jsonParser.Decode(&config)
+	err := json.Unmarshal(rawConfig, &config)
 	log.Debugf("Config Parsed: ", config)
 	return config, err
 }
@@ -89,6 +90,8 @@ func findDuplicates(s []reflect.Value) []string {
 
 // Pipeline is a Directed Acyclic Graph
 type Pipeline struct {
+	ID            uuid.UUID
+	Config        []byte
 	Rules         map[string]*RuleMapper
 	States        map[string]state.State
 	Sources       map[string]*SourceMapper
@@ -142,8 +145,38 @@ func makeSink(sinkConfig output.SinkConfig) (*SinkMapper, error) {
 	}, nil
 }
 
-func NewPipeline(config PipelineConfig) (*Pipeline, error) {
+type PipelineManager struct {
+	backendConfig
+	Backend backend
+}
+
+func (p *PipelineManager) Init() error {
+	var err error
+	p.Backend, err = p.backendConfig.Create()
+	if err != nil {
+		return err
+	}
+	return p.Backend.Init()
+}
+
+func (p *PipelineManager) Store(pipeline *Pipeline) error {
+	return p.Backend.Store(pipeline)
+}
+
+func (p *PipelineManager) Get(uuid []byte) ([]byte, error) {
+	return p.Backend.Get(uuid)
+}
+
+func (p *PipelineManager) NewPipeline(rawConfig []byte) (*Pipeline, error) {
+	config, err := parseConfig(rawConfig)
+	if err != nil {
+		return nil, err
+	}
+	validateConfig(config)
+
 	pipeline := &Pipeline{
+		ID:          uuid.New(),
+		Config:      rawConfig,
 		eventFolder: config.EventFolder,
 		Sources:     make(map[string]*SourceMapper),
 		Rules:       make(map[string]*RuleMapper),
@@ -238,8 +271,13 @@ func NewPipeline(config PipelineConfig) (*Pipeline, error) {
 
 	for sourceName, sourceConfig := range pipeline.Sources {
 		if sourceConfig.Source == nil {
-			log.Fatalln("Source", sourceName, "referred to but does not exist")
+			return &Pipeline{}, fmt.Errorf("Source %s referred to but does not exist", sourceName)
 		}
+	}
+
+	err = p.Store(pipeline)
+	if err != nil {
+		return nil, err
 	}
 
 	return pipeline, nil
@@ -324,4 +362,19 @@ func (p *Pipeline) Close() {
 	for _, s := range p.States {
 		s.Close()
 	}
+}
+
+func startBoltDB(databaseName string, bucketName string) (*bolt.DB, error) {
+	db, err := bolt.Open(databaseName, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	if err != nil {
+		return db, err
+	}
+
+	return db, db.Update(func(tx *bolt.Tx) error {
+		_, err = tx.CreateBucketIfNotExists([]byte(bucketName))
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 }

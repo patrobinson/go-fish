@@ -27,7 +27,7 @@ func (k *KVStore) Init() error {
 	}
 
 	return k.db.Update(func(tx *bolt.Tx) error {
-		_, err = tx.CreateBucket([]byte(k.BucketName))
+		_, err = tx.CreateBucketIfNotExists([]byte(k.BucketName))
 		if err != nil {
 			return err
 		}
