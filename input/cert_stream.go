@@ -32,6 +32,7 @@ func (c *CertStreamInput) Retrieve(output *chan []byte) {
 		data, err := json.Marshal(j)
 		if err != nil {
 			log.Errorf("Unable to Marshal Cert Stream: %s", err)
+			continue
 		}
 		*output <- data
 	}
