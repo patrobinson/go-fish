@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// Input is an interface for input implemenations
+// Source is an interface for input implemenations
 type Source interface {
 	Retrieve(*chan []byte)
 	Init() error
@@ -18,7 +18,15 @@ type SourceConfig struct {
 	ForwarderConfig ForwarderConfig
 }
 
-func Create(config SourceConfig) (Source, error) {
+// SourceIface provides an interface for creating input sources
+type SourceIface interface {
+	Create(config SourceConfig) (Source, error)
+}
+
+// DefaultSource is an implementation of the SourceIface used to create inputs
+type DefaultSource struct{}
+
+func (*DefaultSource) Create(config SourceConfig) (Source, error) {
 	switch config.Type {
 	case "Kinesis":
 		return &KinesisInput{

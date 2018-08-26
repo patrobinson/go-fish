@@ -16,7 +16,11 @@
   },
   "states": {
     "searchConversion": {
-      "type": "KV"
+      "type": "KV",
+      "KVConfig": {
+        "dbFileName": "parse_config",
+        "bucketName": "pipeline_test"
+      }
     }
   },
   "sources": {

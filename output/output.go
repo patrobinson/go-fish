@@ -6,9 +6,9 @@ import (
 )
 
 type SinkConfig struct {
-	Type       string     `json:"type"`
-	FileConfig FileConfig `json:"file_config,omitempty"`
-	SqsConfig  SqsConfig  `json:"sqs_config,omitempty"`
+	Type            string     `json:"type"`
+	FileConfig      FileConfig `json:"file_config,omitempty"`
+	SqsConfig       SqsConfig  `json:"sqs_config,omitempty"`
 	ForwarderConfig ForwarderConfig
 }
 
@@ -18,7 +18,15 @@ type Sink interface {
 	Init() error
 }
 
-func Create(config SinkConfig) (Sink, error) {
+// SourceIface provides an interface for creating input sources
+type SinkIface interface {
+	Create(config SinkConfig) (Sink, error)
+}
+
+// DefaultSource is an implementation of the SourceIface used to create inputs
+type DefaultSink struct{}
+
+func (*DefaultSink) Create(config SinkConfig) (Sink, error) {
 	switch config.Type {
 	case "SQS":
 		return &SQSOutput{

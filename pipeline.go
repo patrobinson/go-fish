@@ -121,9 +121,9 @@ type SinkMapper struct {
 	Sink        output.Sink
 }
 
-func makeSource(sourceConfig input.SourceConfig) (*SourceMapper, error) {
+func makeSource(sourceConfig input.SourceConfig, sourceImpl input.SourceIface) (*SourceMapper, error) {
 	sourceChan := make(chan []byte)
-	source, err := input.Create(sourceConfig)
+	source, err := sourceImpl.Create(sourceConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -133,9 +133,9 @@ func makeSource(sourceConfig input.SourceConfig) (*SourceMapper, error) {
 	}, nil
 }
 
-func makeSink(sinkConfig output.SinkConfig) (*SinkMapper, error) {
+func makeSink(sinkConfig output.SinkConfig, sinkImpl output.SinkIface) (*SinkMapper, error) {
 	sinkChan := make(chan interface{})
-	sink, err := output.Create(sinkConfig)
+	sink, err := sinkImpl.Create(sinkConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -147,14 +147,24 @@ func makeSink(sinkConfig output.SinkConfig) (*SinkMapper, error) {
 
 type PipelineManager struct {
 	backendConfig
-	Backend backend
+	Backend    backend
+	sourceImpl input.SourceIface
+	sinkImpl   output.SinkIface
 }
 
 func (p *PipelineManager) Init() error {
+	log.Debugln("Initialising Pipeline Manager")
 	var err error
 	p.Backend, err = p.backendConfig.Create()
 	if err != nil {
 		return err
+	}
+
+	if p.sourceImpl == nil {
+		p.sourceImpl = &input.DefaultSource{}
+	}
+	if p.sinkImpl == nil {
+		p.sinkImpl = &output.DefaultSink{}
 	}
 	return p.Backend.Init()
 }
@@ -168,6 +178,7 @@ func (p *PipelineManager) Get(uuid []byte) ([]byte, error) {
 }
 
 func (p *PipelineManager) NewPipeline(rawConfig []byte) (*Pipeline, error) {
+	log.Debugln("Creating new pipeline")
 	config, err := parseConfig(rawConfig)
 	if err != nil {
 		return nil, err
@@ -186,7 +197,7 @@ func (p *PipelineManager) NewPipeline(rawConfig []byte) (*Pipeline, error) {
 
 	for sourceName, sourceConfig := range config.Sources {
 		var err error
-		pipeline.Sources[sourceName], err = makeSource(sourceConfig)
+		pipeline.Sources[sourceName], err = makeSource(sourceConfig, p.sourceImpl)
 		if err != nil {
 			return nil, err
 		}
@@ -194,7 +205,7 @@ func (p *PipelineManager) NewPipeline(rawConfig []byte) (*Pipeline, error) {
 
 	for sinkName, sinkConfig := range config.Sinks {
 		var err error
-		pipeline.Sinks[sinkName], err = makeSink(sinkConfig)
+		pipeline.Sinks[sinkName], err = makeSink(sinkConfig, p.sinkImpl)
 		if err != nil {
 			return nil, err
 		}
@@ -234,7 +245,7 @@ func (p *PipelineManager) NewPipeline(rawConfig []byte) (*Pipeline, error) {
 				ForwarderConfig: input.ForwarderConfig{
 					ForwardToChannel: &intermediateChan,
 				},
-			})
+			}, p.sourceImpl)
 			if err != nil {
 				return nil, err
 			}
@@ -247,7 +258,7 @@ func (p *PipelineManager) NewPipeline(rawConfig []byte) (*Pipeline, error) {
 				ForwarderConfig: output.ForwarderConfig{
 					ForwardToChannel: &intermediateChan,
 				},
-			})
+			}, p.sinkImpl)
 			if err != nil {
 				return nil, err
 			}
@@ -286,6 +297,13 @@ func (p *PipelineManager) NewPipeline(rawConfig []byte) (*Pipeline, error) {
 func (p *Pipeline) StartPipeline() error {
 	p.outWaitGroup = &sync.WaitGroup{}
 	p.ruleWaitGroup = &sync.WaitGroup{}
+
+	for _, state := range p.States {
+		err := state.Init()
+		if err != nil {
+			return err
+		}
+	}
 
 	for _, sink := range p.Sinks {
 		err := output.StartOutput(&sink.Sink, p.outWaitGroup, sink.SinkChannel)

@@ -42,13 +42,17 @@ var pipelineRuleConfig = map[string]ruleConfig{
 	},
 }
 
-func makePipeline(rc map[string]ruleConfig) []byte {
+func makePipeline(rc map[string]ruleConfig, dbName string) []byte {
 	pipelineConfig, _ := json.Marshal(PipelineConfig{
 		EventFolder: "testdata/eventTypes",
 		Rules:       rc,
 		States: map[string]state.StateConfig{
 			"searchConversion": state.StateConfig{
 				Type: "KV",
+				KVConfig: state.KVConfig{
+					DbFileName: dbName,
+					BucketName: "pipeline_test",
+				},
 			},
 		},
 		Sources: map[string]input.SourceConfig{
@@ -75,7 +79,7 @@ func TestParseConfig(t *testing.T) {
 	testConfig, _ := os.Open("testdata/pipelines/config.json")
 	testData, _ := ioutil.ReadAll(testConfig)
 	var expectedConfig PipelineConfig
-	json.Unmarshal(makePipeline(pipelineRuleConfig), &expectedConfig)
+	json.Unmarshal(makePipeline(pipelineRuleConfig, "parse_config"), &expectedConfig)
 
 	parsedConfig, err := parseConfig(testData)
 	if err != nil {
@@ -100,7 +104,7 @@ func TestNewPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating Pipeline Manager: %s", err)
 	}
-	_, err = pipelineManager.NewPipeline(makePipeline(basicRuleConfig))
+	_, err = pipelineManager.NewPipeline(makePipeline(basicRuleConfig, "new_pipeline"))
 	if err != nil {
 		t.Errorf("Error creating new pipeline: %s", err)
 	}
@@ -144,7 +148,7 @@ func TestStartBasicPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating Pipeline Manager: %s", err)
 	}
-	p, err := pipelineManager.NewPipeline(makePipeline(basicRuleConfig))
+	p, err := pipelineManager.NewPipeline(makePipeline(basicRuleConfig, "basic_pipeline"))
 	if err != nil {
 		t.Fatalf("Error creating new pipeline: %s", err)
 	}
@@ -168,7 +172,7 @@ func TestStartForwardPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating Pipeline Manager: %s", err)
 	}
-	p, err := pipelineManager.NewPipeline(makePipeline(pipelineRuleConfig))
+	p, err := pipelineManager.NewPipeline(makePipeline(pipelineRuleConfig, "forward_pipeline"))
 	if err != nil {
 		t.Fatalf("Error creating new pipeline: %s", err)
 	}

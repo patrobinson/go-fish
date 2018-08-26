@@ -13,7 +13,6 @@ import (
 
 	"github.com/patrobinson/go-fish/input"
 	"github.com/patrobinson/go-fish/output"
-	"github.com/patrobinson/go-fish/state"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -47,82 +46,88 @@ func (t *testOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
 	log.Info("testOutput: Output closed")
 }
 
-func setupBasicPipeline(output *chan bool, input string) (*Pipeline, error) {
-	aRule, err := NewRule(ruleConfig{
-		Source: "testInput",
-		Plugin: "testdata/rules/a.so",
-		Sink:   "testOutput",
-	}, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	lengthRule, err := NewRule(ruleConfig{
-		Source: "testInput",
-		Plugin: "testdata/rules/length.so",
-		Sink:   "testOutput",
-	}, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	testInput := &testInput{value: input}
-	testOutput := &testOutput{c: output}
-
-	outChan := make(chan interface{})
-	testSinkMapper := &SinkMapper{
-		SinkChannel: &outChan,
-		Sink:        testOutput,
-	}
-
-	aRuleMapper := &RuleMapper{
-		Rule: aRule,
-		Sink: testSinkMapper,
-	}
-	bRuleMapper := &RuleMapper{
-		Rule: lengthRule,
-		Sink: testSinkMapper,
-	}
-	ruleMappings := map[string]*RuleMapper{
-		"a":      aRuleMapper,
-		"length": bRuleMapper,
-	}
-
-	return setupPipeline(ruleMappings, testInput, testSinkMapper, "testdata/eventTypes")
+type testSink struct {
+	sink output.Sink
 }
 
-func setupPipeline(ruleMappings map[string]*RuleMapper, testInput input.Source, testSinkMapper *SinkMapper, eventFolder string) (*Pipeline, error) {
-	inChan := make(chan []byte)
+func (t *testSink) Create(config output.SinkConfig) (output.Sink, error) {
+	return t.sink, nil
+}
 
-	var ruleMapSlice []*RuleMapper
-	for _, ruleMap := range ruleMappings {
-		ruleMapSlice = append(ruleMapSlice, ruleMap)
-	}
+type testSource struct {
+	source input.Source
+}
 
-	pipeline := Pipeline{
-		Rules: ruleMappings,
-		Sources: map[string]*SourceMapper{
-			"testInput": &SourceMapper{
-				SourceChannel: &inChan,
-				Source:        testInput,
-				Rules:         ruleMapSlice,
+func (t *testSource) Create(config input.SourceConfig) (input.Source, error) {
+	return t.source, nil
+}
+
+func setupPipeline(source input.Source, sink output.Sink, config []byte, databaseName string) (*Pipeline, error) {
+	sourceImpl := &testSource{source: source}
+	sinkImpl := &testSink{sink: sink}
+
+	pipelineManager := PipelineManager{
+		backendConfig: backendConfig{
+			Type: "boltdb",
+			BoltDBConfig: boltDBConfig{
+				BucketName:   "gofish",
+				DatabaseName: databaseName,
 			},
 		},
-		Sinks: map[string]*SinkMapper{
-			"testOutput": testSinkMapper,
-		},
-		eventFolder: eventFolder,
+		sourceImpl: sourceImpl,
+		sinkImpl:   sinkImpl,
 	}
+	err := pipelineManager.Init()
+	if err != nil {
+		return nil, err
+	}
+	pipeline, err := pipelineManager.NewPipeline(config)
+	if err != nil {
+		return nil, err
+	}
+	err = pipeline.StartPipeline()
+	if err != nil {
+		return nil, err
+	}
+	return pipeline, nil
+}
 
-	pipeline.StartPipeline()
-	return &pipeline, nil
+func setupBasicPipeline(output *chan bool, input string, databaseName string) (*Pipeline, error) {
+	testInput := &testInput{value: input}
+	testOutput := &testOutput{c: output}
+	config := []byte(`{
+		"eventFolder": "testdata/eventTypes",
+		"rules": {
+			"aRule": {
+				"source": "testInput",
+				"plugin": "testdata/rules/a.so",
+				"sink": "testOutput"
+			},
+			"lengthRule": {
+				"source": "testInput",
+				"plugin": "testdata/rules/length.so",
+				"sink": "testOutput"
+			}
+		},
+		"sources": {
+			"testInput": {
+				"type": "test"
+			}
+		},
+		"sinks": {
+			"testOutput": {
+				"type": "test"
+			}
+		}
+	}`)
+	return setupPipeline(testInput, testOutput, config, databaseName)
 }
 
 func TestSuccessfulRun(t *testing.T) {
 	output := make(chan bool)
-	pipeline, err := setupBasicPipeline(&output, "a")
+	pipeline, err := setupBasicPipeline(&output, "a", "successfulRun.db")
 	if err != nil {
-		t.Errorf("Error creating pipeline: %s", err)
+		t.Fatalf("Error creating pipeline: %s", err)
 	}
 	defer pipeline.Close()
 
@@ -138,9 +143,9 @@ func TestSuccessfulRun(t *testing.T) {
 
 func TestFailRun(t *testing.T) {
 	output := make(chan bool)
-	pipeline, err := setupBasicPipeline(&output, "abc")
+	pipeline, err := setupBasicPipeline(&output, "abc", "failRun.db")
 	if err != nil {
-		t.Errorf("Error creating pipeline: %s", err)
+		t.Fatalf("Error creating pipeline: %s", err)
 	}
 	defer pipeline.Close()
 
@@ -166,6 +171,7 @@ func (t *benchmarkInput) Retrieve(out *chan []byte) {
 }
 
 func TestStreamToStreamStateIntegration(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	defer os.Remove("assumeRoleEnrichment")
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -193,36 +199,40 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 		channel: &inChan,
 		inputs:  2,
 	}
-	outSink := make(chan interface{})
-	testSinkMapper := &SinkMapper{
-		SinkChannel: &outSink,
-		Sink:        out,
-	}
-	ruleState := &state.KVStore{
-		DbFileName: "testdata/s2s.db",
-		BucketName: "s2s",
-	}
-	err := ruleState.Init()
-	if err != nil {
-		t.Errorf("Error starting state: %s", err)
-	}
-	s2sRule, err := NewRule(ruleConfig{
-		Plugin: "testdata/statefulIntegrationTests/s2s_rules/cloudTrail_s2s_join.so",
-	}, ruleState)
-	if err != nil {
-		t.Errorf("Error while creating s2s rule plugin: %s", err)
-	}
+	config := []byte(`{
+		"eventFolder": "testdata/statefulIntegrationTests/eventTypes",
+		"rules": {
+			"s2sRule": {
+				"source": "testStatefulInput",
+				"plugin": "testdata/statefulIntegrationTests/s2s_rules/cloudTrail_s2s_join.so",
+				"state": "kv",
+				"sink": "testStatefulOutput"
+			}
+		},
+		"states" : {
+			"kv": {
+				"type": "KV",
+				"kvConfig": {
+					"dbFileName": "testdata/s2s.db",
+					"bucketName": "s2s"
+				}
+			}
+		},
+		"sources": {
+			"testStatefulInput": {
+				"type": "test"
+			}
+		},
+		"sinks": {
+			"testStatefulOutput": {
+				"type": "test"
+			}
+		}
+	}`)
 
-	s2sRuleMapping := &RuleMapper{
-		Rule: s2sRule,
-		Sink: testSinkMapper,
-	}
-	ruleMappings := map[string]*RuleMapper{
-		"s2s": s2sRuleMapping,
-	}
-	pipeline, err := setupPipeline(ruleMappings, in, testSinkMapper, "testdata/statefulIntegrationTests/eventTypes")
+	pipeline, err := setupPipeline(in, out, config, "streamToStream.db")
 	if err != nil {
-		t.Errorf("Error while setting up pipeline: %v", err)
+		t.Fatalf("Error while setting up pipeline: %v", err)
 	}
 	defer pipeline.Close()
 
@@ -318,36 +328,40 @@ func TestAggregateStateIntegration(t *testing.T) {
 		channel: &inChan,
 		inputs:  4,
 	}
-	outSink := make(chan interface{})
-	testSinkMapper := &SinkMapper{
-		SinkChannel: &outSink,
-		Sink:        out,
-	}
-	ruleState := &state.KVStore{
-		DbFileName: "testdata/agg.db",
-		BucketName: "agg",
-	}
-	err := ruleState.Init()
-	if err != nil {
-		t.Errorf("Error starting state: %s", err)
-	}
-	aggRule, err := NewRule(ruleConfig{
-		Plugin: "testdata/statefulIntegrationTests/agg_rules/cloudTrail_agg.so",
-	}, ruleState)
-	if err != nil {
-		t.Errorf("Error while creating agg rule plugin: %s", err)
-	}
+	config := []byte(`{
+		"eventFolder": "testdata/statefulIntegrationTests/eventTypes",
+		"rules": {
+			"aggRule": {
+				"source": "testStatefulInput",
+				"plugin": "testdata/statefulIntegrationTests/agg_rules/cloudTrail_agg.so",
+				"state": "kv",
+				"sink": "testStatefulOutput"
+			}
+		},
+		"states" : {
+			"kv": {
+				"type": "KV",
+				"kvConfig": {
+					"dbFileName": "testdata/agg.db",
+					"bucketName": "agg"
+				}
+			}
+		},
+		"sources": {
+			"testStatefulInput": {
+				"type": "test"
+			}
+		},
+		"sinks": {
+			"testStatefulOutput": {
+				"type": "test"
+			}
+		}
+	}`)
 
-	aggRuleMapping := &RuleMapper{
-		Rule: aggRule,
-		Sink: testSinkMapper,
-	}
-	ruleMappings := map[string]*RuleMapper{
-		"agg": aggRuleMapping,
-	}
-	pipeline, err := setupPipeline(ruleMappings, in, testSinkMapper, "testdata/statefulIntegrationTests/eventTypes")
+	pipeline, err := setupPipeline(in, out, config, "agg.db")
 	if err != nil {
-		t.Errorf("Error while setting up pipeline: %v", err)
+		t.Fatalf("Error while setting up pipeline: %v", err)
 	}
 	defer pipeline.Close()
 

@@ -26,7 +26,9 @@ integration: get build-testdata
 	rm *.db
 
 docker-integration:
+	docker-compose up --build -d
 	docker-compose run gofish make integration
+	docker-compose down
 
 build-certstream-example:
 	cd examples/certstream/rules && go get || true
