@@ -21,7 +21,7 @@ func (c *CertStreamInput) Init() error {
 	return nil
 }
 
-func (c *CertStreamInput) Retrieve(output *chan []byte) {
+func (c *CertStreamInput) Retrieve(output *chan interface{}) {
 	defer close(*output)
 	for i := range c.stream {
 		j, err := i.Object()
@@ -36,4 +36,9 @@ func (c *CertStreamInput) Retrieve(output *chan []byte) {
 		}
 		*output <- data
 	}
+}
+
+func (c *CertStreamInput) Close() error {
+	close(c.stream)
+	return nil
 }

@@ -1,6 +1,8 @@
 package input
 
 import (
+	"fmt"
+
 	"github.com/Shopify/sarama"
 	log "github.com/sirupsen/logrus"
 )
@@ -17,7 +19,7 @@ type KafkaInput struct {
 	Partitions    int32
 	consumer      sarama.Consumer
 	partConsumers []*sarama.PartitionConsumer
-	outputChan    *chan []byte
+	outputChan    *chan interface{}
 }
 
 func (k *KafkaInput) Init() error {
@@ -41,7 +43,7 @@ func (k *KafkaInput) createPartitionConsumers() error {
 	return nil
 }
 
-func (k *KafkaInput) Retrieve(output *chan []byte) {
+func (k *KafkaInput) Retrieve(output *chan interface{}) {
 	k.outputChan = output
 	for _, partitionConsumer := range k.partConsumers {
 		go k.getMessages(partitionConsumer)
@@ -55,15 +57,16 @@ func (k *KafkaInput) getMessages(partConsumer *sarama.PartitionConsumer) {
 	}
 }
 
-func (k *KafkaInput) Close() {
+func (k *KafkaInput) Close() error {
 	err := k.consumer.Close()
 	if err != nil {
-		log.Errorf("Failed to close Kafka consumer: %v", err)
+		return fmt.Errorf("Failed to close Kafka consumer: %v", err)
 	}
 	for _, partitionConsumer := range k.partConsumers {
 		err = (*partitionConsumer).Close()
 		if err != nil {
-			log.Errorf("Failed to close Kafka Partition Consumer: %v", err)
+			return fmt.Errorf("Failed to close Kafka Partition Consumer: %v", err)
 		}
 	}
+	return nil
 }

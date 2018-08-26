@@ -5,6 +5,9 @@ GOOS     = "linux"
 get:
 	@go get ./...
 
+fake-get:
+	@cp -r vendor/github.com/* $$GOPATH/src/github.com/
+
 build:
 	@go build
 

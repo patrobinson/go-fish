@@ -85,15 +85,15 @@ func (api *API) CreatePipeline(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("No pipeline config received"))
 		return
 	}
-	log.Debugln("Creating pipeline with config", body)
+	log.Debugln("Creating pipeline with config", string(body))
 	pipeline, err := api.pipelineManager.NewPipeline(body)
-	log.Debugln("Created pipeline", pipeline.ID)
 	if err != nil {
 		log.Errorln("Error creating pipeline", err)
 		w.WriteHeader(400)
 		w.Write([]byte(err.Error()))
 		return
 	}
+	log.Debugln("Created pipeline", pipeline.ID)
 	err = api.pipelineManager.Store(pipeline)
 	if err != nil {
 		log.Errorln("Error storing pipeline", err)
@@ -101,7 +101,12 @@ func (api *API) CreatePipeline(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(err.Error()))
 		return
 	}
-	go pipeline.Run()
+	go func() {
+		err := pipeline.StartPipeline()
+		if err != nil {
+			log.Errorln("Pipeline failed:", err)
+		}
+	}()
 	w.WriteHeader(201)
 	w.Write([]byte(pipeline.ID.String()))
 }

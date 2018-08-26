@@ -28,11 +28,3 @@ func Create(config StateConfig) (State, error) {
 
 	return nil, fmt.Errorf("Invalid state type: %v", config.Type)
 }
-
-func StartState(state *State) error {
-	err := (*state).Init()
-	if err != nil {
-		return fmt.Errorf("Output setup failed: %v", err)
-	}
-	return nil
-}

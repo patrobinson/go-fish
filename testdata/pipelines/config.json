@@ -10,7 +10,6 @@
     "conversionRule": {
       "source": "searchRule",
       "plugin": "testdata/rules/length.so",
-      "state": "searchConversion",
       "sink": "fileOutput"
     }
   },

@@ -19,7 +19,7 @@ func (i *FileInput) Init() error {
 	return nil
 }
 
-func (i *FileInput) Retrieve(output *chan []byte) {
+func (i *FileInput) Retrieve(output *chan interface{}) {
 	defer close(*output)
 	file, err := os.Open(i.FileName)
 	if err != nil {
@@ -34,4 +34,9 @@ func (i *FileInput) Retrieve(output *chan []byte) {
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("Unable to read file %v: %v\n", i.FileName, err)
 	}
+}
+
+func (i *FileInput) Close() error {
+	// TODO: Implement
+	return nil
 }

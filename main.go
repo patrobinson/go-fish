@@ -52,8 +52,6 @@ func startFromConfig(configFile string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	pipeline.Run()
 }
 
 func startAPIFromConfig(configFile string) {

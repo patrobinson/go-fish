@@ -10,14 +10,19 @@ import (
 )
 
 type cloudTrailAggRule struct {
+	State   state.State
 	kvStore *state.KVStore
 }
 
-func (rule *cloudTrailAggRule) Init(s state.State) error {
+func (rule *cloudTrailAggRule) Init() error {
+	return nil
+}
+
+func (rule *cloudTrailAggRule) SetState(s state.State) error {
 	var ok bool
 	rule.kvStore, ok = s.(*state.KVStore)
 	if !ok {
-		return fmt.Errorf("This rule expects a KVStore state, but got: %s", s)
+		return fmt.Errorf("This rule expects a KVStore state, but got: %s", rule.State)
 	}
 	return nil
 }
@@ -111,6 +116,9 @@ func (rule *cloudTrailAggRule) generatePrincipalName(userIdentity es.UserIdentit
 
 func (rule *cloudTrailAggRule) String() string { return "cloudTrailAggRule" }
 
-func (rule *cloudTrailAggRule) Close() {}
+func (rule *cloudTrailAggRule) Close() error {
+	rule.kvStore.Close()
+	return nil
+}
 
 var Rule cloudTrailAggRule

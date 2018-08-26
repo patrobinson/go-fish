@@ -16,7 +16,11 @@ It can be added to your basic rule like so
 */
 type BasicRule struct{}
 
-func (b *BasicRule) Init(state.State) error {
+func (b *BasicRule) Init() error {
+	return nil
+}
+
+func (b *BasicRule) SetState(_ state.State) error {
 	return nil
 }
 
@@ -28,4 +32,6 @@ func (b *BasicRule) Window() ([]output.OutputEvent, error) {
 	return []output.OutputEvent{}, nil
 }
 
-func (b *BasicRule) Close() {}
+func (b *BasicRule) Close() error {
+	return nil
+}

@@ -21,6 +21,7 @@ type SQSOutput struct {
 	QueueUrl string
 	Region   string
 	sqsSvc   sqsiface.SQSAPI
+	wg       *sync.WaitGroup
 }
 
 func (o *SQSOutput) Init() error {
@@ -32,12 +33,14 @@ func (o *SQSOutput) Init() error {
 		return err
 	}
 	o.sqsSvc = sqs.New(session)
+	o.wg = &sync.WaitGroup{}
 	return nil
 }
 
-func (o *SQSOutput) Sink(input *chan interface{}, wg *sync.WaitGroup) {
+func (o *SQSOutput) Sink(input *chan interface{}) {
 	log.Debugf("Writing to SQS queue %v", o.QueueUrl)
-	defer (*wg).Done()
+	o.wg.Add(1)
+	defer o.wg.Done()
 
 	for i := range *input {
 		if i == nil {
@@ -54,4 +57,9 @@ func (o *SQSOutput) Sink(input *chan interface{}, wg *sync.WaitGroup) {
 			log.Errorf("Unable to write to SQS Queue: %v\n", err)
 		}
 	}
+}
+
+func (o *SQSOutput) Close() error {
+	o.wg.Wait()
+	return nil
 }

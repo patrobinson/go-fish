@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/patrobinson/go-fish/input"
 	"github.com/patrobinson/go-fish/output"
@@ -21,7 +22,6 @@ var basicRuleConfig = map[string]ruleConfig{
 	},
 	"conversionRule": ruleConfig{
 		Source: "fileInput",
-		State:  "searchConversion",
 		Plugin: "testdata/rules/length.so",
 		Sink:   "fileOutput",
 	},
@@ -36,7 +36,6 @@ var pipelineRuleConfig = map[string]ruleConfig{
 	},
 	"conversionRule": ruleConfig{
 		Source: "searchRule",
-		State:  "searchConversion",
 		Plugin: "testdata/rules/length.so",
 		Sink:   "fileOutput",
 	},
@@ -104,7 +103,7 @@ func TestNewPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating Pipeline Manager: %s", err)
 	}
-	_, err = pipelineManager.NewPipeline(makePipeline(basicRuleConfig, "new_pipeline"))
+	_, err = pipelineManager.NewPipeline(makePipeline(basicRuleConfig, "newPipeline.db"))
 	if err != nil {
 		t.Errorf("Error creating new pipeline: %s", err)
 	}
@@ -148,14 +147,17 @@ func TestStartBasicPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating Pipeline Manager: %s", err)
 	}
-	p, err := pipelineManager.NewPipeline(makePipeline(basicRuleConfig, "basic_pipeline"))
+	p, err := pipelineManager.NewPipeline(makePipeline(basicRuleConfig, "basicPipeline.db"))
 	if err != nil {
 		t.Fatalf("Error creating new pipeline: %s", err)
 	}
-	err = p.StartPipeline()
-	if err != nil {
-		t.Errorf("Error starting pipeline: %s", err)
-	}
+	go func() {
+		err = p.StartPipeline()
+		if err != nil {
+			t.Errorf("Error starting pipeline: %s", err)
+		}
+	}()
+	time.Sleep(1 * time.Second)
 }
 
 func TestStartForwardPipeline(t *testing.T) {
@@ -172,12 +174,15 @@ func TestStartForwardPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating Pipeline Manager: %s", err)
 	}
-	p, err := pipelineManager.NewPipeline(makePipeline(pipelineRuleConfig, "forward_pipeline"))
+	p, err := pipelineManager.NewPipeline(makePipeline(pipelineRuleConfig, "forwardPipeline.db"))
 	if err != nil {
 		t.Fatalf("Error creating new pipeline: %s", err)
 	}
-	err = p.StartPipeline()
-	if err != nil {
-		t.Errorf("Error starting pipeline: %s", err)
-	}
+	go func() {
+		err = p.StartPipeline()
+		if err != nil {
+			t.Errorf("Error starting pipeline: %s", err)
+		}
+	}()
+	time.Sleep(1 * time.Second)
 }

@@ -12,10 +12,11 @@ type TestRule struct {
 	windowCounter int
 }
 
-func (r *TestRule) Init(state.State) error {
-	return nil
-}
-func (r *TestRule) Close() {}
+func (r *TestRule) Init() error { return nil }
+
+func (r *TestRule) SetState(s state.State) error { return nil }
+
+func (r *TestRule) Close() error { return nil }
 
 func (r *TestRule) Process(interface{}) interface{} {
 	return "a"

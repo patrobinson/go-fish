@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -17,16 +16,20 @@ import (
 )
 
 type testInput struct {
-	value string
+	value []byte
 }
 
 func (t testInput) Init() error {
 	return nil
 }
 
-func (t *testInput) Retrieve(out *chan []byte) {
+func (t *testInput) Retrieve(out *chan interface{}) {
 	defer close(*out)
-	*out <- []byte(t.value)
+	*out <- interface{}(t.value)
+}
+
+func (t *testInput) Close() error {
+	return nil
 }
 
 type testOutput struct {
@@ -37,13 +40,16 @@ func (t testOutput) Init() error {
 	return nil
 }
 
-func (t *testOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
-	defer (*wg).Done()
+func (t *testOutput) Sink(in *chan interface{}) {
 	for msg := range *in {
-		log.Info("testOutput: Output received")
+		log.Infoln("testOutput: Output received", msg)
 		*t.c <- msg.(bool)
 	}
 	log.Info("testOutput: Output closed")
+}
+
+func (t *testOutput) Close() error {
+	return nil
 }
 
 type testSink struct {
@@ -52,6 +58,10 @@ type testSink struct {
 
 func (t *testSink) Create(config output.SinkConfig) (output.Sink, error) {
 	return t.sink, nil
+}
+
+func (t *testSink) Close() error {
+	return nil
 }
 
 type testSource struct {
@@ -85,14 +95,17 @@ func setupPipeline(source input.Source, sink output.Sink, config []byte, databas
 	if err != nil {
 		return nil, err
 	}
-	err = pipeline.StartPipeline()
-	if err != nil {
-		return nil, err
-	}
+
+	go func() {
+		err = pipeline.StartPipeline()
+		if err != nil {
+			panic(err)
+		}
+	}()
 	return pipeline, nil
 }
 
-func setupBasicPipeline(output *chan bool, input string, databaseName string) (*Pipeline, error) {
+func setupBasicPipeline(output *chan bool, input []byte, databaseName string) (*Pipeline, error) {
 	testInput := &testInput{value: input}
 	testOutput := &testOutput{c: output}
 	config := []byte(`{
@@ -125,17 +138,15 @@ func setupBasicPipeline(output *chan bool, input string, databaseName string) (*
 
 func TestSuccessfulRun(t *testing.T) {
 	output := make(chan bool)
-	pipeline, err := setupBasicPipeline(&output, "a", "successfulRun.db")
+	pipeline, err := setupBasicPipeline(&output, []byte("a"), "successfulRun.db")
 	if err != nil {
 		t.Fatalf("Error creating pipeline: %s", err)
 	}
 	defer pipeline.Close()
-
-	go pipeline.Run()
 	r1 := <-output
-	fmt.Print("Received 1 output\n")
+	t.Log("Received 1 output\n")
 	r2 := <-output
-	fmt.Print("Received 2 output\n")
+	t.Log("Received 2 output\n")
 	if !r1 || !r2 {
 		t.Errorf("Rules did not match %v %v", r1, r2)
 	}
@@ -143,27 +154,25 @@ func TestSuccessfulRun(t *testing.T) {
 
 func TestFailRun(t *testing.T) {
 	output := make(chan bool)
-	pipeline, err := setupBasicPipeline(&output, "abc", "failRun.db")
+	pipeline, err := setupBasicPipeline(&output, []byte("abc"), "failRun.db")
 	if err != nil {
 		t.Fatalf("Error creating pipeline: %s", err)
 	}
 	defer pipeline.Close()
-
-	go pipeline.Run()
 	if r1, r2 := <-output, <-output; r1 || r2 {
 		t.Errorf("Rules did not match %v %v", r1, r2)
 	}
 }
 
 type benchmarkInput struct {
-	input *chan []byte
+	input *chan interface{}
 }
 
 func (t benchmarkInput) Init() error {
 	return nil
 }
 
-func (t *benchmarkInput) Retrieve(out *chan []byte) {
+func (t *benchmarkInput) Retrieve(out *chan interface{}) {
 	defer close(*out)
 	for in := range *t.input {
 		*out <- in
@@ -171,7 +180,6 @@ func (t *benchmarkInput) Retrieve(out *chan []byte) {
 }
 
 func TestStreamToStreamStateIntegration(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
 	defer os.Remove("assumeRoleEnrichment")
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -194,7 +202,7 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 
 	outChan := make(chan interface{})
 	out := &testStatefulOutput{c: &outChan}
-	inChan := make(chan []byte)
+	inChan := make(chan interface{})
 	in := &testStatefulInput{
 		channel: &inChan,
 		inputs:  2,
@@ -236,8 +244,6 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 	}
 	defer pipeline.Close()
 
-	go pipeline.Run()
-
 	assumeRoleEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/assumeRoleEvent.json")
 	inChan <- assumeRoleEvent
 
@@ -268,15 +274,15 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 }
 
 type testStatefulInput struct {
-	channel *chan []byte
+	channel *chan interface{}
 	inputs  int
 }
 
-func (t testStatefulInput) Init() error {
+func (t *testStatefulInput) Init() error {
 	return nil
 }
 
-func (t *testStatefulInput) Retrieve(out *chan []byte) {
+func (t *testStatefulInput) Retrieve(out *chan interface{}) {
 	defer close(*out)
 	for i := 0; i < t.inputs; i++ {
 		output := <-*t.channel
@@ -284,21 +290,28 @@ func (t *testStatefulInput) Retrieve(out *chan []byte) {
 	}
 }
 
+func (t *testStatefulInput) Close() error {
+	return nil
+}
+
 type testStatefulOutput struct {
 	c *chan interface{}
 }
 
-func (t testStatefulOutput) Init() error {
+func (t *testStatefulOutput) Init() error {
 	return nil
 }
 
-func (t *testStatefulOutput) Sink(in *chan interface{}, wg *sync.WaitGroup) {
-	defer (*wg).Done()
+func (t *testStatefulOutput) Sink(in *chan interface{}) {
 	for msg := range *in {
 		log.Info("testStatefulOutput: Output received")
 		*t.c <- msg
 	}
 	log.Info("testStatefulOutput: Output closed")
+}
+
+func (t *testStatefulOutput) Close() error {
+	return nil
 }
 
 func TestAggregateStateIntegration(t *testing.T) {
@@ -323,7 +336,7 @@ func TestAggregateStateIntegration(t *testing.T) {
 
 	outChan := make(chan interface{})
 	out := &testStatefulOutput{c: &outChan}
-	inChan := make(chan []byte)
+	inChan := make(chan interface{})
 	in := &testStatefulInput{
 		channel: &inChan,
 		inputs:  4,
@@ -364,8 +377,6 @@ func TestAggregateStateIntegration(t *testing.T) {
 		t.Fatalf("Error while setting up pipeline: %v", err)
 	}
 	defer pipeline.Close()
-
-	go pipeline.Run()
 
 	createUserEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/createUserEvent.json")
 	inChan <- createUserEvent

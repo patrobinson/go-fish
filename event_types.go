@@ -49,10 +49,14 @@ func getEventTypes(eventFolder string) ([]eventType, error) {
 	return events, nil
 }
 
-func matchEventType(eventTypes []eventType, rawEvt []byte) (event.Event, error) {
+func matchEventType(eventTypes []eventType, rawEvt interface{}) (event.Event, error) {
 	var evt event.Event
 	for _, et := range eventTypes {
-		if evt, err := et.Decode(rawEvt); err == nil {
+		byteEvt, ok := rawEvt.([]byte)
+		if !ok {
+			return evt, errors.New("Could not decode raw event to byte array")
+		}
+		if evt, err := et.Decode(byteEvt); err == nil {
 			log.Debugf("Matched event to type %s", et.Name())
 			return evt, nil
 		}

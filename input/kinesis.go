@@ -11,7 +11,7 @@ type KinesisConfig struct {
 
 // KinesisInput implements the Input interface
 type KinesisInput struct {
-	outputChan      *chan []byte
+	outputChan      *chan interface{}
 	StreamName      string
 	recordConsumer  *recordConsumer
 	kinesisConsumer *gokini.KinesisConsumer
@@ -19,7 +19,7 @@ type KinesisInput struct {
 
 type recordConsumer struct {
 	shardID    string
-	outputChan *chan []byte
+	outputChan *chan interface{}
 }
 
 func (p *recordConsumer) Init(shardID string) error {
@@ -53,7 +53,7 @@ func (ki *KinesisInput) Init() error {
 }
 
 // Retrieve implements the Input interface
-func (ki *KinesisInput) Retrieve(output *chan []byte) {
+func (ki *KinesisInput) Retrieve(output *chan interface{}) {
 	ki.recordConsumer = &recordConsumer{
 		outputChan: output,
 	}
@@ -61,4 +61,9 @@ func (ki *KinesisInput) Retrieve(output *chan []byte) {
 	if err != nil {
 		log.Fatalln("Failed to start consumer:", err)
 	}
+}
+
+func (ki *KinesisInput) Close() error {
+	ki.recordConsumer.Shutdown()
+	return nil
 }

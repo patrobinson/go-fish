@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
-	"sync"
 	"syscall"
 	"time"
 
@@ -90,58 +89,118 @@ func findDuplicates(s []reflect.Value) []string {
 
 // Pipeline is a Directed Acyclic Graph
 type Pipeline struct {
-	ID            uuid.UUID
-	Config        []byte
-	Rules         map[string]*RuleMapper
-	States        map[string]state.State
-	Sources       map[string]*SourceMapper
-	Sinks         map[string]*SinkMapper
-	outWaitGroup  *sync.WaitGroup
-	ruleWaitGroup *sync.WaitGroup
-	eventFolder   string
+	ID          uuid.UUID
+	Config      []byte
+	Nodes       map[string]*pipelineNode
+	eventFolder string
 }
 
-type RuleMapper struct {
-	Rule             Rule
-	Sink             *SinkMapper
-	RuleInputChannel *chan interface{}
-	WindowManager    *windowManager
-	State            *state.State
-	Rules            []*RuleMapper
+func (p *Pipeline) AddVertex(name string, vertex *pipelineNode) {
+	p.Nodes[name] = vertex
 }
 
-type SourceMapper struct {
-	SourceChannel *chan []byte
-	Source        input.Source
-	Rules         []*RuleMapper
+func (p *Pipeline) AddEdge(from, to *pipelineNode) {
+	from.AddChild(to)
+	to.AddParent(from)
 }
 
-type SinkMapper struct {
-	SinkChannel *chan interface{}
-	Sink        output.Sink
+func (p *Pipeline) sources() []*pipelineNode {
+	var sources []*pipelineNode
+	for _, node := range p.Nodes {
+		if node.InDegree() == 0 {
+			sources = append(sources, node)
+		}
+	}
+	return sources
 }
 
-func makeSource(sourceConfig input.SourceConfig, sourceImpl input.SourceIface) (*SourceMapper, error) {
-	sourceChan := make(chan []byte)
+func (p *Pipeline) internals() map[string]*pipelineNode {
+	internals := make(map[string]*pipelineNode)
+	for nodeName, node := range p.Nodes {
+		if node.OutDegree() != 0 && node.InDegree() != 0 {
+			internals[nodeName] = node
+		}
+	}
+	return internals
+}
+
+func (p *Pipeline) sinks() []*pipelineNode {
+	var sinks []*pipelineNode
+	for _, node := range p.Nodes {
+		if node.OutDegree() == 0 {
+			sinks = append(sinks, node)
+		}
+	}
+	return sinks
+}
+
+type PipelineNodeAPI interface {
+	Init() error
+	Close() error
+}
+
+type pipelineNode struct {
+	inputChan     *chan interface{}
+	outputChan    *chan interface{}
+	value         PipelineNodeAPI
+	children      []*pipelineNode
+	parents       []*pipelineNode
+	windowManager *windowManager
+}
+
+func (node *pipelineNode) Init() error {
+	return node.value.Init()
+}
+
+func (node *pipelineNode) Close() {
+	node.value.Close()
+}
+
+func (node *pipelineNode) InDegree() int {
+	return len(node.parents)
+}
+
+func (node *pipelineNode) Children() []*pipelineNode {
+	return node.children
+}
+
+func (node *pipelineNode) AddChild(child *pipelineNode) {
+	node.children = append(node.children, child)
+}
+
+func (node *pipelineNode) Parents() []*pipelineNode {
+	return node.parents
+}
+
+func (node *pipelineNode) AddParent(parent *pipelineNode) {
+	node.parents = append(node.parents, parent)
+}
+
+func (node *pipelineNode) OutDegree() int {
+	return len(node.children)
+}
+
+func makeSource(sourceConfig input.SourceConfig, sourceImpl input.SourceIface) (*pipelineNode, error) {
+	sourceChan := make(chan interface{})
 	source, err := sourceImpl.Create(sourceConfig)
 	if err != nil {
 		return nil, err
 	}
-	return &SourceMapper{
-		SourceChannel: &sourceChan,
-		Source:        source,
+	return &pipelineNode{
+		outputChan: &sourceChan,
+		value:      source,
 	}, nil
 }
 
-func makeSink(sinkConfig output.SinkConfig, sinkImpl output.SinkIface) (*SinkMapper, error) {
+func makeSink(sinkConfig output.SinkConfig, sinkImpl output.SinkIface) (*pipelineNode, error) {
 	sinkChan := make(chan interface{})
 	sink, err := sinkImpl.Create(sinkConfig)
 	if err != nil {
 		return nil, err
 	}
-	return &SinkMapper{
-		SinkChannel: &sinkChan,
-		Sink:        sink,
+	return &pipelineNode{
+		inputChan: &sinkChan,
+		value:     sink,
 	}, nil
 }
 
@@ -181,174 +240,126 @@ func (p *PipelineManager) NewPipeline(rawConfig []byte) (*Pipeline, error) {
 	log.Debugln("Creating new pipeline")
 	config, err := parseConfig(rawConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error parsing config %s", err)
 	}
-	validateConfig(config)
+	if err := validateConfig(config); err != nil {
+		return nil, fmt.Errorf("Error validating config %s", err)
+	}
 
 	pipeline := &Pipeline{
 		ID:          uuid.New(),
 		Config:      rawConfig,
 		eventFolder: config.EventFolder,
-		Sources:     make(map[string]*SourceMapper),
-		Rules:       make(map[string]*RuleMapper),
-		States:      make(map[string]state.State),
-		Sinks:       make(map[string]*SinkMapper),
+		Nodes:       make(map[string]*pipelineNode),
 	}
 
 	for sourceName, sourceConfig := range config.Sources {
-		var err error
-		pipeline.Sources[sourceName], err = makeSource(sourceConfig, p.sourceImpl)
+		source, err := makeSource(sourceConfig, p.sourceImpl)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Error creating source %s", err)
 		}
+		pipeline.AddVertex(sourceName, source)
 	}
 
 	for sinkName, sinkConfig := range config.Sinks {
-		var err error
-		pipeline.Sinks[sinkName], err = makeSink(sinkConfig, p.sinkImpl)
+		sink, err := makeSink(sinkConfig, p.sinkImpl)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Error creating sink %s", err)
 		}
-	}
-
-	for stateName, stateConfig := range config.States {
-		var err error
-		pipeline.States[stateName], err = state.Create(stateConfig)
-		if err != nil {
-			return nil, err
-		}
+		pipeline.AddVertex(sinkName, sink)
 	}
 
 	for ruleName, ruleConfig := range config.Rules {
 		var ruleState state.State
+		var err error
 		if ruleConfig.State != "" {
-			ruleState = pipeline.States[ruleConfig.State]
+			ruleState, err = state.Create(config.States[ruleConfig.State])
+			if err != nil {
+				return nil, fmt.Errorf("Error creating rule state %s", err)
+			}
 		} else {
 			ruleState = nil
 		}
 
 		rule, err := NewRule(ruleConfig, ruleState)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Error creating rule %s", err)
 		}
-
-		// If the sink is a rule
-		if _, ok := config.Rules[ruleConfig.Sink]; ok {
-			intermediateChan := make(chan interface{})
-			destinationRuleName := ruleConfig.Sink
-			var sourceRules []*RuleMapper
-			if sourceM, ok := pipeline.Sources[ruleName]; ok {
-				sourceRules = sourceM.Rules
-			}
-			pipeline.Sources[ruleName], err = makeSource(input.SourceConfig{
-				Type: "Forward",
-				ForwarderConfig: input.ForwarderConfig{
-					ForwardToChannel: &intermediateChan,
-				},
-			}, p.sourceImpl)
-			if err != nil {
-				return nil, err
-			}
-
-			// If the destination rule was created first, restore the rule mapper to the source we just created
-			pipeline.Sources[ruleName].Rules = sourceRules
-
-			pipeline.Sinks[destinationRuleName], err = makeSink(output.SinkConfig{
-				Type: "Forward",
-				ForwarderConfig: output.ForwarderConfig{
-					ForwardToChannel: &intermediateChan,
-				},
-			}, p.sinkImpl)
-			if err != nil {
-				return nil, err
-			}
-
-			destinationRuleMapping := pipeline.Rules[destinationRuleName]
-			pipeline.Sources[ruleName].Rules = append(pipeline.Sources[ruleName].Rules, destinationRuleMapping)
+		ruleNode := &pipelineNode{
+			value: rule,
 		}
-
-		ruleMapping := &RuleMapper{
-			Rule: rule,
-			Sink: pipeline.Sinks[ruleConfig.Sink],
-		}
-
-		pipeline.Rules[ruleName] = ruleMapping
-		if _, ok := pipeline.Sources[ruleConfig.Source]; !ok {
-			// In the case the Source is another Rule, the source may not exist yet
-			pipeline.Sources[ruleConfig.Source] = &SourceMapper{}
-		}
-		pipeline.Sources[ruleConfig.Source].Rules = append(pipeline.Sources[ruleConfig.Source].Rules, ruleMapping)
+		pipeline.AddVertex(ruleName, ruleNode)
 	}
 
-	for sourceName, sourceConfig := range pipeline.Sources {
-		if sourceConfig.Source == nil {
-			return &Pipeline{}, fmt.Errorf("Source %s referred to but does not exist", sourceName)
-		}
+	// Once all rules exist we can plumb them.
+	// Doing so before this requires they be defined in the config in the order
+	// that they are created in.
+	for ruleName, ruleConfig := range config.Rules {
+		ruleNode := pipeline.Nodes[ruleName]
+		pipeline.AddEdge(ruleNode, pipeline.Nodes[ruleConfig.Sink])
+		pipeline.AddEdge(pipeline.Nodes[ruleConfig.Source], ruleNode)
 	}
 
 	err = p.Store(pipeline)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error storing pipeline %s", err)
 	}
 
 	return pipeline, nil
 }
 
 func (p *Pipeline) StartPipeline() error {
-	p.outWaitGroup = &sync.WaitGroup{}
-	p.ruleWaitGroup = &sync.WaitGroup{}
-
-	for _, state := range p.States {
-		err := state.Init()
+	for _, sink := range p.sinks() {
+		sVal, ok := sink.value.(output.Sink)
+		if !ok {
+			return fmt.Errorf("Expected %s to implement the Sink interface", sink.value)
+		}
+		err := output.StartOutput(sVal, sink.inputChan)
 		if err != nil {
 			return err
 		}
 	}
 
-	for _, sink := range p.Sinks {
-		err := output.StartOutput(&sink.Sink, p.outWaitGroup, sink.SinkChannel)
-		if err != nil {
-			return err
-		}
-	}
-
-	for ruleName, rule := range p.Rules {
+	for ruleName, rule := range p.internals() {
 		log.Infof("Starting rule %s", ruleName)
-		(*rule).WindowManager = &windowManager{
-			sinkChan: rule.Sink.SinkChannel,
+		outputChan := make(chan interface{})
+		rule.outputChan = &outputChan
+		(*rule).windowManager = &windowManager{
+			sinkChan: rule.outputChan,
 		}
-		(*rule).RuleInputChannel = startRule(rule.Rule, rule.Sink.SinkChannel, p.ruleWaitGroup, rule.WindowManager)
+		rVal := rule.value.(Rule)
+		(*rule).inputChan = startRule(rVal, rule.outputChan, rule.windowManager)
+		for _, child := range rule.Children() {
+			go func(sink *pipelineNode, source *pipelineNode) {
+				for evt := range *source.outputChan {
+					*sink.inputChan <- evt
+				}
+			}(child, rule)
+		}
 	}
 
-	for sourceName, source := range p.Sources {
-		log.Infoln("Starting source", sourceName)
-		err := input.StartInput((*source).Source, (*source).SourceChannel)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (p *Pipeline) Run() {
 	eventTypes, err := getEventTypes(p.eventFolder)
 	if err != nil {
 		log.Fatalf("Failed to get Event plugins: %v", err)
 	}
 
-	for _, source := range p.Sources {
-		go func(iChan *chan []byte, ruleMaps []*RuleMapper) {
-			for data := range *iChan {
+	for _, source := range p.sources() {
+		sVal := source.value.(input.Source)
+		err := input.StartInput(sVal, source.outputChan)
+		if err != nil {
+			return err
+		}
+		go func(source *pipelineNode) {
+			for data := range *source.outputChan {
 				evt, err := matchEventType(eventTypes, data)
 				if err != nil {
-					log.Infof("Error matching event: %v", err)
+					log.Infof("Error matching event: %v %v", err, data)
 				}
-				for _, ruleMap := range ruleMaps {
-					*ruleMap.RuleInputChannel <- evt
+				for _, node := range source.Children() {
+					*node.inputChan <- evt
 				}
 			}
-		}(source.SourceChannel, source.Rules)
+		}(source)
 	}
 
 	c := make(chan os.Signal, 1)
@@ -360,25 +371,25 @@ func (p *Pipeline) Run() {
 	}
 
 	p.Close()
+	return nil
 }
 
 func (p *Pipeline) Close() {
-	log.Debug("Closing rule channels\n")
-
-	for _, r := range p.Rules {
-		close(*r.RuleInputChannel)
+	log.Debug("Closing input channels\n")
+	for _, s := range p.sources() {
+		s.Close()
 	}
-	p.ruleWaitGroup.Wait()
+
+	log.Debug("Closing rule channels\n")
+	for _, i := range p.internals() {
+		close(*i.outputChan)
+		i.Close()
+	}
 
 	log.Debug("Closing output channels\n")
-	for _, o := range p.Sinks {
-		close(*o.SinkChannel)
-	}
-	p.outWaitGroup.Wait()
-
-	log.Debug("Closing state files\n")
-	for _, s := range p.States {
-		s.Close()
+	for _, o := range p.sinks() {
+		close(*o.inputChan)
+		o.Close()
 	}
 }
 

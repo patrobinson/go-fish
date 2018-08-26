@@ -2,20 +2,19 @@ package output
 
 import (
 	"fmt"
-	"sync"
 )
 
 type SinkConfig struct {
-	Type            string     `json:"type"`
-	FileConfig      FileConfig `json:"file_config,omitempty"`
-	SqsConfig       SqsConfig  `json:"sqs_config,omitempty"`
-	ForwarderConfig ForwarderConfig
+	Type       string     `json:"type"`
+	FileConfig FileConfig `json:"file_config,omitempty"`
+	SqsConfig  SqsConfig  `json:"sqs_config,omitempty"`
 }
 
 // Sink is an interface for output implementations
 type Sink interface {
-	Sink(*chan interface{}, *sync.WaitGroup)
+	Sink(*chan interface{})
 	Init() error
+	Close() error
 }
 
 // SourceIface provides an interface for creating input sources
@@ -37,21 +36,16 @@ func (*DefaultSink) Create(config SinkConfig) (Sink, error) {
 		return &FileOutput{
 			FileName: config.FileConfig.Path,
 		}, nil
-	case "Forward":
-		return &ForwarderOutput{
-			ForwardToChannel: config.ForwarderConfig.ForwardToChannel,
-		}, nil
 	}
 
 	return nil, fmt.Errorf("Invalid output type: %v", config.Type)
 }
 
-func StartOutput(out *Sink, wg *sync.WaitGroup, outChannel *chan interface{}) error {
-	err := (*out).Init()
+func StartOutput(out Sink, outChannel *chan interface{}) error {
+	err := out.Init()
 	if err != nil {
 		return fmt.Errorf("Output setup failed: %v", err)
 	}
-	(*wg).Add(1)
-	go (*out).Sink(outChannel, wg)
+	go out.Sink(outChannel)
 	return nil
 }

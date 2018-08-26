@@ -11,14 +11,19 @@ import (
 )
 
 type cloudTrailRule struct {
+	State   state.State
 	kvStore *state.KVStore
 }
 
-func (rule *cloudTrailRule) Init(s state.State) error {
+func (rule *cloudTrailRule) Init() error {
+	return nil
+}
+
+func (rule *cloudTrailRule) SetState(s state.State) error {
 	var ok bool
 	rule.kvStore, ok = s.(*state.KVStore)
 	if !ok {
-		return fmt.Errorf("This rule expects a KVStore state, but got: %s", s)
+		return fmt.Errorf("This rule expects a KVStore state, but got: %s", rule.State)
 	}
 	return nil
 }
@@ -53,7 +58,10 @@ func (rule *cloudTrailRule) Process(evt interface{}) interface{} {
 
 func (rule *cloudTrailRule) String() string { return "cloudTrailRule" }
 
-func (rule *cloudTrailRule) Close() {}
+func (rule *cloudTrailRule) Close() error {
+	rule.kvStore.Close()
+	return nil
+}
 
 var Rule cloudTrailRule
 

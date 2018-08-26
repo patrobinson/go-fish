@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var pipelineConfig = []byte(`
@@ -18,24 +20,33 @@ var pipelineConfig = []byte(`
 			"fileInput": {
 			  "type": "File",
 			  "file_config": {
-				"path": "testdata/pipelines/input/file.in"
+				"path": "testdata/pipelines/input"
 			  }
 			}
 		},
 		"rules": {
 			"searchRule": {
 			  "source": "fileInput",
-			  "plugin": "testdata/rules/a.so"
+			  "plugin": "testdata/rules/a.so",
+			  "sink": "fileOutput"
 			}
 		},
 		"states": {},
-		"sinks": {}
+		"sinks": {
+			"fileOutput": {
+				"type": "File",
+				"file_config": {
+				  "path": "testdata/pipelines/output"
+				}
+			  }
+		}
 	}
 `)
 
 var api API
 
 func TestMain(m *testing.M) {
+	log.SetLevel(log.DebugLevel)
 	api = API{}
 	go api.Start(apiConfig{
 		ListenAddress: ":8080",

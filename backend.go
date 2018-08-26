@@ -101,8 +101,8 @@ func (bb *boltDBBackend) Get(uuid []byte) ([]byte, error) {
 
 // DynamoDB
 type dynamoDBConfig struct {
-	Region    string `json:`
-	TableName string
+	Region    string `json:"region"`
+	TableName string `json:"tableName"`
 }
 
 type dynamoDBBackend struct {

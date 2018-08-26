@@ -138,7 +138,12 @@ It implements the Rule interface.
 
 ```
 type Rule interface {
-	Process(interface{}) bool
+	Init() error
+  SetState(state.State) error
+	Process(interface{}) interface{}
 	String() string
+	WindowInterval() int
+	Window() ([]output.OutputEvent, error)
+	Close() error
 }
 ```

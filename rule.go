@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"plugin"
-	"sync"
 
 	"github.com/patrobinson/go-fish/output"
 	"github.com/patrobinson/go-fish/state"
@@ -13,12 +12,13 @@ import (
 
 // Rule is an interface for rule implementations
 type Rule interface {
-	Init(state.State) error
+	Init() error
+	SetState(state.State) error
 	Process(interface{}) interface{}
 	String() string
 	WindowInterval() int
 	Window() ([]output.OutputEvent, error)
-	Close()
+	Close() error
 }
 
 type ruleConfig struct {
@@ -41,13 +41,21 @@ func NewRule(config ruleConfig, s state.State) (Rule, error) {
 	if !ok {
 		return nil, errors.New("Rule is not a rule type")
 	}
-	if err := rule.Init(s); err != nil {
+	if err := rule.Init(); err != nil {
 		return nil, err
+	}
+	if s != nil {
+		if err := s.Init(); err != nil {
+			return nil, fmt.Errorf("Error initialising state %s", err)
+		}
+		if err := rule.SetState(s); err != nil {
+			return nil, fmt.Errorf("Error setting state %s", err)
+		}
 	}
 	return rule, nil
 }
 
-func startRule(rule Rule, output *chan interface{}, wg *sync.WaitGroup, windower *windowManager) *chan interface{} {
+func startRule(rule Rule, output *chan interface{}, windower *windowManager) *chan interface{} {
 	input := make(chan interface{})
 	log.Debugf("Starting %v\n", rule.String())
 
@@ -57,15 +65,13 @@ func startRule(rule Rule, output *chan interface{}, wg *sync.WaitGroup, windower
 			interval: rule.WindowInterval(),
 		})
 	}
-	(*wg).Add(1)
-	go func(input *chan interface{}, output *chan interface{}, wg *sync.WaitGroup, r Rule) {
-		defer (*wg).Done()
+	go func(input *chan interface{}, output *chan interface{}, r Rule) {
 		defer r.Close()
 		for str := range *input {
 			res := r.Process(str)
 			*output <- res
 		}
-	}(&input, output, wg, rule)
+	}(&input, output, rule)
 
 	windower.start()
 
