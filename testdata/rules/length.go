@@ -6,7 +6,7 @@ import (
 )
 
 type lengthRule struct {
-	rule_helpers.BasicRule
+	rulehelpers.BasicRule
 }
 
 func (r *lengthRule) Process(thing interface{}) interface{} {

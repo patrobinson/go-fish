@@ -6,6 +6,7 @@ import (
 	"github.com/boltdb/bolt"
 )
 
+// KVConfig defines the configuration of a KeyValue store
 type KVConfig struct {
 	DbFileName string `json:"dbFileName"`
 	BucketName string `json:"bucketName"`

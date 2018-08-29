@@ -16,11 +16,13 @@ type CertStreamInput struct {
 	stream chan jsonq.JsonQuery
 }
 
+// Init initalises the input stream
 func (c *CertStreamInput) Init() error {
 	c.stream = certstream.CertStreamEventStream(false)
 	return nil
 }
 
+// Retrieve starts the input retrieval
 func (c *CertStreamInput) Retrieve(output *chan interface{}) {
 	defer close(*output)
 	for i := range c.stream {
@@ -38,6 +40,7 @@ func (c *CertStreamInput) Retrieve(output *chan interface{}) {
 	}
 }
 
+// Close closes the input stream
 func (c *CertStreamInput) Close() error {
 	close(c.stream)
 	return nil

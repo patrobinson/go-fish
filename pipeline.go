@@ -21,7 +21,7 @@ import (
 type pipelineConfig struct {
 	EventFolder string                        `json:"eventFolder"`
 	Rules       map[string]ruleConfig         `json:"rules"`
-	States      map[string]state.StateConfig  `json:"states"`
+	States      map[string]state.Config       `json:"states"`
 	Sources     map[string]input.SourceConfig `json:"sources"`
 	Sinks       map[string]output.SinkConfig  `json:"sinks"`
 }

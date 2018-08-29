@@ -45,7 +45,7 @@ func makePipeline(rc map[string]ruleConfig, dbName string) []byte {
 	pConfig, _ := json.Marshal(pipelineConfig{
 		EventFolder: "testdata/eventTypes",
 		Rules:       rc,
-		States: map[string]state.StateConfig{
+		States: map[string]state.Config{
 			"searchConversion": {
 				Type: "KV",
 				KVConfig: state.KVConfig{
@@ -174,7 +174,7 @@ func TestNewPipelineWithMultipleRulesUsingState(t *testing.T) {
 				Plugin: "testdata/rules/a.so",
 			},
 		},
-		States: map[string]state.StateConfig{
+		States: map[string]state.Config{
 			"aState": {
 				Type: "KVStore",
 			},

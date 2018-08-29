@@ -6,7 +6,7 @@ import (
 )
 
 type aRule struct {
-	rule_helpers.BasicRule
+	rulehelpers.BasicRule
 }
 
 func (r *aRule) Process(thing interface{}) interface{} {

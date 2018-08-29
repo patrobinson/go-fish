@@ -53,6 +53,6 @@ func (d *domainCertIssued) Process(thing interface{}) interface{} {
 	return nil
 }
 
-func (r *domainCertIssued) String() string { return "domainCertIssued" }
+func (d *domainCertIssued) String() string { return "domainCertIssued" }
 
 var Rule domainCertIssued

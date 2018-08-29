@@ -4,18 +4,20 @@ import (
 	"fmt"
 )
 
-type StateConfig struct {
+// Config defines the configuration for a state
+type Config struct {
 	Type     string   `json:"type"`
 	KVConfig KVConfig `json:"kvConfig,omitempty"`
 }
 
-// Sink is an interface for output implementations
+// State is the interface for stateful storage backings for a rule
 type State interface {
 	Init() error
 	Close()
 }
 
-func Create(config StateConfig) (State, error) {
+// Create creates the stateful backing
+func Create(config Config) (State, error) {
 	switch config.Type {
 	case "KV":
 		return &KVStore{

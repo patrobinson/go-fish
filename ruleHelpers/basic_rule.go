@@ -1,4 +1,4 @@
-package rule_helpers
+package rulehelpers
 
 import (
 	"github.com/patrobinson/go-fish/output"

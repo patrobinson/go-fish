@@ -2,22 +2,26 @@ package state
 
 import "sync"
 
+// Counter is a simple in memory counter
 type Counter struct {
 	sync.RWMutex
 	Count int
 }
 
+// Init initalises the counter
 func (c *Counter) Init() error {
 	c.Count = 0
 	return nil
 }
 
+// Increment increments the counter
 func (c *Counter) Increment() {
 	c.Lock()
 	c.Count++
 	c.Unlock()
 }
 
+// Window returns the current value and resets the counter
 func (c *Counter) Window() int {
 	c.Lock()
 	ret := c.Count
@@ -26,10 +30,5 @@ func (c *Counter) Window() int {
 	return ret
 }
 
-func NewCounter() *Counter {
-	return &Counter{
-		Count: 0,
-	}
-}
-
+// Close closes the counter (does nothing)
 func (c *Counter) Close() {}
