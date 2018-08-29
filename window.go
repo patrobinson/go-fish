@@ -8,43 +8,42 @@ import (
 )
 
 type windowManager struct {
-	rules    []windowConfig
+	rule     Rule
 	sinkChan *chan interface{}
 	sync.RWMutex
-}
-
-type windowConfig struct {
-	rule       Rule
 	interval   int
 	lastCalled time.Time
-}
-
-func (w *windowManager) add(config windowConfig) {
-	w.Lock()
-	defer w.Unlock()
-	w.rules = append(w.rules, config)
+	closeChan  *chan struct{}
 }
 
 func (w *windowManager) start() {
-	go func() {
+	closeChan := make(chan struct{})
+	w.closeChan = &closeChan
+	go func(closeChan chan struct{}) {
 		for {
-			for _, ruleConfig := range w.rules {
-				w.windowRunner(&ruleConfig)
+			w.windowRunner()
+			select {
+			case <-closeChan:
+				break
+			case <-time.After(1 * time.Second):
 			}
-			time.Sleep(1 * time.Second)
 		}
-	}()
+	}(closeChan)
 }
 
-func (w *windowManager) windowRunner(ruleConfig *windowConfig) {
-	if time.Now().Sub(ruleConfig.lastCalled).Seconds() > float64(ruleConfig.interval) {
-		outputs, err := ruleConfig.rule.Window()
+func (w *windowManager) stop() {
+	close(*w.closeChan)
+}
+
+func (w *windowManager) windowRunner() {
+	if time.Now().Sub(w.lastCalled).Seconds() > float64(w.interval) {
+		outputs, err := w.rule.Window()
 		if err != nil {
-			log.Errorf("Error calling Window() on rule %v: %v", ruleConfig.rule.String(), err)
+			log.Errorf("Error calling Window() on rule %v: %v", w.rule.String(), err)
 		}
 		for _, o := range outputs {
 			*w.sinkChan <- o
 		}
-		ruleConfig.lastCalled = time.Now()
+		w.lastCalled = time.Now()
 	}
 }

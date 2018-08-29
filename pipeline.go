@@ -324,10 +324,11 @@ func (p *Pipeline) StartPipeline() error {
 		log.Infof("Starting rule %s", ruleName)
 		outputChan := make(chan interface{})
 		rule.outputChan = &outputChan
+		rVal := rule.value.(Rule)
 		(*rule).windowManager = &windowManager{
 			sinkChan: rule.outputChan,
+			rule:     rVal,
 		}
-		rVal := rule.value.(Rule)
 		(*rule).inputChan = startRule(rVal, rule.outputChan, rule.windowManager)
 		for _, child := range rule.Children() {
 			go func(sink *pipelineNode, source *pipelineNode) {
@@ -382,6 +383,7 @@ func (p *Pipeline) Close() {
 
 	log.Debug("Closing rule channels\n")
 	for _, i := range p.internals() {
+		i.windowManager.stop()
 		close(*i.outputChan)
 		i.Close()
 	}

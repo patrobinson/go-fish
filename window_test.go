@@ -40,17 +40,14 @@ func TestWindowManager(t *testing.T) {
 	outChan := make(chan interface{})
 	manager := &windowManager{
 		sinkChan: &outChan,
-	}
-	config := &windowConfig{
 		rule:     testRule,
-		interval: 1,
 	}
 
-	manager.windowRunner(config)
+	manager.windowRunner()
 	time.Sleep(1 * time.Second)
-	manager.windowRunner(config)
+	manager.windowRunner()
 	time.Sleep(1 * time.Second)
-	manager.windowRunner(config)
+	manager.windowRunner()
 
 	if testRule.windowCounter != 3 {
 		t.Errorf("Expected Window() to be called 3 times, called %d times", testRule.windowCounter)

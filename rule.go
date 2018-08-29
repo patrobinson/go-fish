@@ -59,12 +59,6 @@ func startRule(rule Rule, output *chan interface{}, windower *windowManager) *ch
 	input := make(chan interface{})
 	log.Debugf("Starting %v\n", rule.String())
 
-	if rule.WindowInterval() > 0 {
-		windower.add(windowConfig{
-			rule:     rule,
-			interval: rule.WindowInterval(),
-		})
-	}
 	go func(input *chan interface{}, output *chan interface{}, r Rule) {
 		defer r.Close()
 		for str := range *input {
@@ -73,7 +67,9 @@ func startRule(rule Rule, output *chan interface{}, windower *windowManager) *ch
 		}
 	}(&input, output, rule)
 
-	windower.start()
+	if rule.WindowInterval() > 0 {
+		windower.start()
+	}
 
 	return &input
 }
