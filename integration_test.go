@@ -138,11 +138,10 @@ func setupBasicPipeline(output *chan bool, input []byte, databaseName string) (*
 
 func TestSuccessfulRun(t *testing.T) {
 	output := make(chan bool)
-	pipeline, err := setupBasicPipeline(&output, []byte("a"), "successfulRun.db")
+	_, err := setupBasicPipeline(&output, []byte("a"), "successfulRun.db")
 	if err != nil {
 		t.Fatalf("Error creating pipeline: %s", err)
 	}
-	defer pipeline.Close()
 	r1 := <-output
 	t.Log("Received 1 output\n")
 	r2 := <-output
@@ -154,11 +153,10 @@ func TestSuccessfulRun(t *testing.T) {
 
 func TestFailRun(t *testing.T) {
 	output := make(chan bool)
-	pipeline, err := setupBasicPipeline(&output, []byte("abc"), "failRun.db")
+	_, err := setupBasicPipeline(&output, []byte("abc"), "failRun.db")
 	if err != nil {
 		t.Fatalf("Error creating pipeline: %s", err)
 	}
-	defer pipeline.Close()
 	if r1, r2 := <-output, <-output; r1 || r2 {
 		t.Errorf("Rules did not match %v %v", r1, r2)
 	}
@@ -238,11 +236,10 @@ func TestStreamToStreamStateIntegration(t *testing.T) {
 		}
 	}`)
 
-	pipeline, err := setupPipeline(in, out, config, "streamToStream.db")
+	_, err := setupPipeline(in, out, config, "streamToStream.db")
 	if err != nil {
 		t.Fatalf("Error while setting up pipeline: %v", err)
 	}
-	defer pipeline.Close()
 
 	assumeRoleEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/assumeRoleEvent.json")
 	inChan <- assumeRoleEvent
@@ -372,11 +369,10 @@ func TestAggregateStateIntegration(t *testing.T) {
 		}
 	}`)
 
-	pipeline, err := setupPipeline(in, out, config, "agg.db")
+	_, err := setupPipeline(in, out, config, "agg.db")
 	if err != nil {
 		t.Fatalf("Error while setting up pipeline: %v", err)
 	}
-	defer pipeline.Close()
 
 	createUserEvent, _ := ioutil.ReadFile("testdata/statefulIntegrationTests/createUserEvent.json")
 	inChan <- createUserEvent
