@@ -40,13 +40,15 @@ func TestKafkaInput_Retrieve(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create partitions: %s", err)
 	}
-	output := make(chan []byte)
+	output := make(chan interface{})
 	input.Retrieve(&output)
 	// LIFO
-	if msg := <-output; string(msg) != "hello partition 1" {
-		log.Fatalf("Expected message 'hellow partition 1', got %s", msg)
+	msg := <-output
+	if mString := msg.([]byte); string(mString) != "hello partition 1" {
+		log.Fatalf("Expected message 'hellow partition 1', got %s", mString)
 	}
-	if msg := <-output; string(msg) != "hello partition 0" {
-		log.Fatalf("Expected message 'hellow partition 0', got %s", msg)
+	msg = <-output
+	if mString := msg.([]byte); string(mString) != "hello partition 0" {
+		log.Fatalf("Expected message 'hello partition 0', got %s", mString)
 	}
 }
