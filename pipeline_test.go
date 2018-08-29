@@ -133,6 +133,68 @@ func TestNewPipelineWithDuplicateKeys(t *testing.T) {
 	}
 }
 
+func TestNewPipelineWithInvalidState(t *testing.T) {
+	pipelineConfig := PipelineConfig{
+		EventFolder: "testdata/eventTypes",
+		Rules: map[string]ruleConfig{
+			"aRule": ruleConfig{
+				Source: "aSource",
+				State:  "nonExistant",
+				Plugin: "testdata/rules/a.so",
+			},
+		},
+		Sources: map[string]input.SourceConfig{
+			"aSource": input.SourceConfig{
+				Type: "File",
+				FileConfig: input.FileConfig{
+					Path: "testdata/pipelines/input",
+				},
+			},
+		},
+	}
+
+	err := validateConfig(pipelineConfig)
+	if err.Error() != "Invalid state for rule aRule: nonExistant" {
+		t.Errorf("Expected pipeline with invalid state to riase error, but go %s", err)
+	}
+}
+
+func TestNewPipelineWithMultipleRulesUsingState(t *testing.T) {
+	pipelineConfig := PipelineConfig{
+		EventFolder: "testdata/eventTypes",
+		Rules: map[string]ruleConfig{
+			"aRule": ruleConfig{
+				Source: "aSource",
+				State:  "aState",
+				Plugin: "testdata/rules/a.so",
+			},
+			"bRule": ruleConfig{
+				Source: "aSource",
+				State:  "aState",
+				Plugin: "testdata/rules/a.so",
+			},
+		},
+		States: map[string]state.StateConfig{
+			"aState": {
+				Type: "KVStore",
+			},
+		},
+		Sources: map[string]input.SourceConfig{
+			"aSource": input.SourceConfig{
+				Type: "File",
+				FileConfig: input.FileConfig{
+					Path: "testdata/pipelines/input",
+				},
+			},
+		},
+	}
+
+	err := validateConfig(pipelineConfig)
+	if err == nil || err.Error() != "Invalid rule configuration, only one rule can use each state but found multiple use state: aState" {
+		t.Errorf("Expected pipeline with invalid state to riase error, but go %v", err)
+	}
+}
+
 func TestStartBasicPipeline(t *testing.T) {
 	pipelineManager := &PipelineManager{
 		backendConfig: backendConfig{

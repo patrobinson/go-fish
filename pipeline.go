@@ -34,6 +34,7 @@ func parseConfig(rawConfig []byte) (PipelineConfig, error) {
 }
 
 func validateConfig(config PipelineConfig) error {
+	stateUsage := make(map[string]int)
 	// Validate that any Sources, Sinks and States a Rule points to exist
 	for ruleName, rule := range config.Rules {
 		// TODO: Ensure a source exists
@@ -51,8 +52,11 @@ func validateConfig(config PipelineConfig) error {
 		}
 
 		_, ok = config.States[rule.State]
-		if rule.State != "" && !ok {
-			return fmt.Errorf("Invalid state for rule %s: %s", ruleName, rule.State)
+		if rule.State != "" {
+			if !ok {
+				return fmt.Errorf("Invalid state for rule %s: %s", ruleName, rule.State)
+			}
+			stateUsage[rule.State]++
 		}
 
 		if _, err := os.Stat(rule.Plugin); err != nil {
@@ -69,6 +73,13 @@ func validateConfig(config PipelineConfig) error {
 	duplicates := findDuplicates(keys)
 	if len(duplicates) > 0 {
 		return fmt.Errorf("Invalid configuration, duplicate keys: %s", duplicates)
+	}
+
+	// Validate no rules share a state
+	for state, used := range stateUsage {
+		if used > 1 {
+			return fmt.Errorf("Invalid rule configuration, only one rule can use each state but found multiple use state: %s", state)
+		}
 	}
 
 	return nil
