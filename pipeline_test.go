@@ -14,13 +14,13 @@ import (
 )
 
 var basicRuleConfig = map[string]ruleConfig{
-	"searchRule": ruleConfig{
+	"searchRule": {
 		Source: "fileInput",
 		State:  "searchConversion",
 		Plugin: "testdata/rules/a.so",
 		Sink:   "fileOutput",
 	},
-	"conversionRule": ruleConfig{
+	"conversionRule": {
 		Source: "fileInput",
 		Plugin: "testdata/rules/length.so",
 		Sink:   "fileOutput",
@@ -28,13 +28,13 @@ var basicRuleConfig = map[string]ruleConfig{
 }
 
 var pipelineRuleConfig = map[string]ruleConfig{
-	"searchRule": ruleConfig{
+	"searchRule": {
 		Source: "fileInput",
 		State:  "searchConversion",
 		Plugin: "testdata/rules/a.so",
 		Sink:   "conversionRule",
 	},
-	"conversionRule": ruleConfig{
+	"conversionRule": {
 		Source: "searchRule",
 		Plugin: "testdata/rules/length.so",
 		Sink:   "fileOutput",
@@ -46,7 +46,7 @@ func makePipeline(rc map[string]ruleConfig, dbName string) []byte {
 		EventFolder: "testdata/eventTypes",
 		Rules:       rc,
 		States: map[string]state.StateConfig{
-			"searchConversion": state.StateConfig{
+			"searchConversion": {
 				Type: "KV",
 				KVConfig: state.KVConfig{
 					DbFileName: dbName,
@@ -55,7 +55,7 @@ func makePipeline(rc map[string]ruleConfig, dbName string) []byte {
 			},
 		},
 		Sources: map[string]input.SourceConfig{
-			"fileInput": input.SourceConfig{
+			"fileInput": {
 				Type: "File",
 				FileConfig: input.FileConfig{
 					Path: "testdata/pipelines/input",
@@ -63,7 +63,7 @@ func makePipeline(rc map[string]ruleConfig, dbName string) []byte {
 			},
 		},
 		Sinks: map[string]output.SinkConfig{
-			"fileOutput": output.SinkConfig{
+			"fileOutput": {
 				Type: "File",
 				FileConfig: output.FileConfig{
 					Path: "testdata/output",
@@ -113,13 +113,13 @@ func TestNewPipelineWithDuplicateKeys(t *testing.T) {
 	pipelineConfig := PipelineConfig{
 		EventFolder: "testdata/eventTypes",
 		Rules: map[string]ruleConfig{
-			"aRule": ruleConfig{
+			"aRule": {
 				Source: "aRule",
 				Plugin: "testdata/rules/a.so",
 			},
 		},
 		Sources: map[string]input.SourceConfig{
-			"aRule": input.SourceConfig{
+			"aRule": {
 				Type: "File",
 				FileConfig: input.FileConfig{
 					Path: "testdata/pipelines/input",
@@ -137,14 +137,14 @@ func TestNewPipelineWithInvalidState(t *testing.T) {
 	pipelineConfig := PipelineConfig{
 		EventFolder: "testdata/eventTypes",
 		Rules: map[string]ruleConfig{
-			"aRule": ruleConfig{
+			"aRule": {
 				Source: "aSource",
 				State:  "nonExistant",
 				Plugin: "testdata/rules/a.so",
 			},
 		},
 		Sources: map[string]input.SourceConfig{
-			"aSource": input.SourceConfig{
+			"aSource": {
 				Type: "File",
 				FileConfig: input.FileConfig{
 					Path: "testdata/pipelines/input",
@@ -163,12 +163,12 @@ func TestNewPipelineWithMultipleRulesUsingState(t *testing.T) {
 	pipelineConfig := PipelineConfig{
 		EventFolder: "testdata/eventTypes",
 		Rules: map[string]ruleConfig{
-			"aRule": ruleConfig{
+			"aRule": {
 				Source: "aSource",
 				State:  "aState",
 				Plugin: "testdata/rules/a.so",
 			},
-			"bRule": ruleConfig{
+			"bRule": {
 				Source: "aSource",
 				State:  "aState",
 				Plugin: "testdata/rules/a.so",
@@ -180,7 +180,7 @@ func TestNewPipelineWithMultipleRulesUsingState(t *testing.T) {
 			},
 		},
 		Sources: map[string]input.SourceConfig{
-			"aSource": input.SourceConfig{
+			"aSource": {
 				Type: "File",
 				FileConfig: input.FileConfig{
 					Path: "testdata/pipelines/input",

@@ -138,10 +138,10 @@ func (ddb *dynamoDBBackend) Store(pipeline *Pipeline) error {
 	dynamoValue := &dynamodb.PutItemInput{
 		TableName: aws.String(ddb.TableName),
 		Item: map[string]*dynamodb.AttributeValue{
-			"UUID": &dynamodb.AttributeValue{
+			"UUID": {
 				B: key,
 			},
-			"Config": &dynamodb.AttributeValue{
+			"Config": {
 				B: value,
 			},
 		},
