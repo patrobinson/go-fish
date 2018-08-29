@@ -59,7 +59,7 @@ func TestDynamoGetStoredPipeline(t *testing.T) {
 	`)
 	id := uuid.New()
 	idVal, _ := id.MarshalText()
-	pipeline := Pipeline{
+	p := pipeline{
 		ID:     id,
 		Config: pipelineConfig,
 	}
@@ -71,7 +71,7 @@ func TestDynamoGetStoredPipeline(t *testing.T) {
 		TableName: "go-fish",
 		Retries:   0,
 	}
-	err := backend.Store(&pipeline)
+	err := backend.Store(&p)
 	if err != nil {
 		t.Fatalf("Error storing pipeline %s", err)
 	}

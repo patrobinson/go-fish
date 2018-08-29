@@ -72,11 +72,11 @@ func (t *testSource) Create(config input.SourceConfig) (input.Source, error) {
 	return t.source, nil
 }
 
-func setupPipeline(source input.Source, sink output.Sink, config []byte, databaseName string) (*Pipeline, error) {
+func setupPipeline(source input.Source, sink output.Sink, config []byte, databaseName string) (*pipeline, error) {
 	sourceImpl := &testSource{source: source}
 	sinkImpl := &testSink{sink: sink}
 
-	pipelineManager := PipelineManager{
+	pManager := pipelineManager{
 		backendConfig: backendConfig{
 			Type: "boltdb",
 			BoltDBConfig: boltDBConfig{
@@ -87,25 +87,25 @@ func setupPipeline(source input.Source, sink output.Sink, config []byte, databas
 		sourceImpl: sourceImpl,
 		sinkImpl:   sinkImpl,
 	}
-	err := pipelineManager.Init()
+	err := pManager.Init()
 	if err != nil {
 		return nil, err
 	}
-	pipeline, err := pipelineManager.NewPipeline(config)
+	p, err := pManager.NewPipeline(config)
 	if err != nil {
 		return nil, err
 	}
 
 	go func() {
-		err = pipeline.StartPipeline()
+		err = p.StartPipeline()
 		if err != nil {
 			panic(err)
 		}
 	}()
-	return pipeline, nil
+	return p, nil
 }
 
-func setupBasicPipeline(output *chan bool, input []byte, databaseName string) (*Pipeline, error) {
+func setupBasicPipeline(output *chan bool, input []byte, databaseName string) (*pipeline, error) {
 	testInput := &testInput{value: input}
 	testOutput := &testOutput{c: output}
 	config := []byte(`{

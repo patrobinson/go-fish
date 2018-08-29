@@ -16,7 +16,7 @@ import (
 
 type backend interface {
 	Init() error
-	Store(pipeline *Pipeline) error
+	Store(*pipeline) error
 	Get(uuid []byte) ([]byte, error)
 }
 
@@ -73,13 +73,13 @@ func (bb *boltDBBackend) Init() error {
 	return err
 }
 
-func (bb *boltDBBackend) Store(pipeline *Pipeline) error {
-	key, err := (*pipeline).ID.MarshalText()
+func (bb *boltDBBackend) Store(p *pipeline) error {
+	key, err := (*p).ID.MarshalText()
 	if err != nil {
 		return err
 	}
 
-	value := (*pipeline).Config
+	value := (*p).Config
 	return bb.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bb.BucketName))
 		if b == nil {
@@ -128,13 +128,13 @@ func (ddb *dynamoDBBackend) Init() error {
 	ddb.svc = dynamodb.New(session)
 	return nil
 }
-func (ddb *dynamoDBBackend) Store(pipeline *Pipeline) error {
-	key, err := (*pipeline).ID.MarshalText()
+func (ddb *dynamoDBBackend) Store(p *pipeline) error {
+	key, err := (*p).ID.MarshalText()
 	if err != nil {
 		return err
 	}
 
-	value := (*pipeline).Config
+	value := (*p).Config
 	dynamoValue := &dynamodb.PutItemInput{
 		TableName: aws.String(ddb.TableName),
 		Item: map[string]*dynamodb.AttributeValue{

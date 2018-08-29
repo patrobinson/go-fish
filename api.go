@@ -11,51 +11,51 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type API struct {
-	pipelineManager *PipelineManager
+type api struct {
+	pipelineManager *pipelineManager
 	Router          *mux.Router
 	httpServer      *http.Server
 }
 
 // Start starts the API server and blocks
-func (api *API) Start(config apiConfig) {
-	api.pipelineManager = &PipelineManager{
+func (a *api) Start(config apiConfig) {
+	a.pipelineManager = &pipelineManager{
 		backendConfig: config.Backend,
 	}
-	err := api.pipelineManager.Init()
+	err := a.pipelineManager.Init()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	api.Router = mux.NewRouter()
-	api.httpServer = &http.Server{
+	a.Router = mux.NewRouter()
+	a.httpServer = &http.Server{
 		Addr:         config.ListenAddress,
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
-		Handler:      api.Router,
+		Handler:      a.Router,
 	}
 
-	api.Router.Path("/pipelines/{id}").Methods("GET").HandlerFunc(api.GetPipelines)
-	api.Router.Path("/pipelines").Methods("POST").HandlerFunc(api.CreatePipeline)
-	err = api.httpServer.ListenAndServe()
+	a.Router.Path("/pipelines/{id}").Methods("GET").HandlerFunc(a.GetPipelines)
+	a.Router.Path("/pipelines").Methods("POST").HandlerFunc(a.CreatePipeline)
+	err = a.httpServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
 }
 
 // Shutdown the API Server
-func (api *API) Shutdown() {
+func (a *api) Shutdown() {
 	log.Info("Shutting down API Server")
-	api.httpServer.Shutdown(context.Background())
+	a.httpServer.Shutdown(context.Background())
 }
 
 // GetPipelines gets a list of Pipelines
-func (api *API) GetPipelines(w http.ResponseWriter, r *http.Request) {
+func (a *api) GetPipelines(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	pipelineID := vars["id"]
 	// Validation of incoming variable?
-	pipeline, err := api.pipelineManager.Get([]byte(pipelineID))
+	pipeline, err := a.pipelineManager.Get([]byte(pipelineID))
 	if err != nil {
 		w.WriteHeader(500)
 		// Should probably wrap that err
@@ -71,7 +71,7 @@ func (api *API) GetPipelines(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreatePipeline creates a new Pipeline and returns the UUID
-func (api *API) CreatePipeline(w http.ResponseWriter, r *http.Request) {
+func (a *api) CreatePipeline(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Errorln("Error reading body", err)
@@ -86,7 +86,7 @@ func (api *API) CreatePipeline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Debugln("Creating pipeline with config", string(body))
-	pipeline, err := api.pipelineManager.NewPipeline(body)
+	pipeline, err := a.pipelineManager.NewPipeline(body)
 	if err != nil {
 		log.Errorln("Error creating pipeline", err)
 		w.WriteHeader(400)
@@ -94,7 +94,7 @@ func (api *API) CreatePipeline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Debugln("Created pipeline", pipeline.ID)
-	err = api.pipelineManager.Store(pipeline)
+	err = a.pipelineManager.Store(pipeline)
 	if err != nil {
 		log.Errorln("Error storing pipeline", err)
 		w.WriteHeader(500)

@@ -13,7 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var pipelineConfig = []byte(`
+var pConfig = []byte(`
 	{
 		"eventFolder": "testdata/eventTypes",
 		"sources": {
@@ -43,12 +43,12 @@ var pipelineConfig = []byte(`
 	}
 `)
 
-var api API
+var a api
 
 func TestMain(m *testing.M) {
 	log.SetLevel(log.DebugLevel)
-	api = API{}
-	go api.Start(apiConfig{
+	a = api{}
+	go a.Start(apiConfig{
 		ListenAddress: ":8080",
 		Backend: backendConfig{
 			Type: "boltdb",
@@ -65,14 +65,14 @@ func TestMain(m *testing.M) {
 
 func executeRequest(req *http.Request) *httptest.ResponseRecorder {
 	rr := httptest.NewRecorder()
-	api.Router.ServeHTTP(rr, req)
+	a.Router.ServeHTTP(rr, req)
 
 	return rr
 }
 
 func TestGetPipelines(t *testing.T) {
 
-	pipeline, err := api.pipelineManager.NewPipeline(pipelineConfig)
+	pipeline, err := a.pipelineManager.NewPipeline(pConfig)
 	if err != nil {
 		t.Fatalf("Error creating pipeline %s", err)
 	}
@@ -85,15 +85,15 @@ func TestGetPipelines(t *testing.T) {
 		t.Errorf("Expected 200 OK, got: %d", response.Code)
 	}
 
-	if !reflect.DeepEqual(response.Body.Bytes(), pipelineConfig) {
-		t.Errorf("Expected body to equal\n%s\nGot\n%s\n", pipelineConfig, response.Body.String())
+	if !reflect.DeepEqual(response.Body.Bytes(), pConfig) {
+		t.Errorf("Expected body to equal\n%s\nGot\n%s\n", pConfig, response.Body.String())
 	}
-	api.Shutdown()
+	a.Shutdown()
 }
 
 func TestCreatePipeline(t *testing.T) {
 	t.Logf("Posting to /pipelines")
-	req, _ := http.NewRequest("POST", "/pipelines", bytes.NewReader(pipelineConfig))
+	req, _ := http.NewRequest("POST", "/pipelines", bytes.NewReader(pConfig))
 
 	response := executeRequest(req)
 	if response.Code != 201 {
@@ -101,9 +101,9 @@ func TestCreatePipeline(t *testing.T) {
 	}
 
 	pID := response.Body.Bytes()
-	config, _ := api.pipelineManager.Get(pID)
-	if !reflect.DeepEqual(config, pipelineConfig) {
-		t.Errorf("Expected config\n%s\nGot\n%s", pipelineConfig, config)
+	config, _ := a.pipelineManager.Get(pID)
+	if !reflect.DeepEqual(config, pConfig) {
+		t.Errorf("Expected config\n%s\nGot\n%s", pConfig, config)
 	}
-	api.Shutdown()
+	a.Shutdown()
 }

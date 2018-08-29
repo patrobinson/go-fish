@@ -42,7 +42,7 @@ var pipelineRuleConfig = map[string]ruleConfig{
 }
 
 func makePipeline(rc map[string]ruleConfig, dbName string) []byte {
-	pipelineConfig, _ := json.Marshal(PipelineConfig{
+	pConfig, _ := json.Marshal(pipelineConfig{
 		EventFolder: "testdata/eventTypes",
 		Rules:       rc,
 		States: map[string]state.StateConfig{
@@ -71,13 +71,13 @@ func makePipeline(rc map[string]ruleConfig, dbName string) []byte {
 			},
 		},
 	})
-	return pipelineConfig
+	return pConfig
 }
 
 func TestParseConfig(t *testing.T) {
 	testConfig, _ := os.Open("testdata/pipelines/config.json")
 	testData, _ := ioutil.ReadAll(testConfig)
-	var expectedConfig PipelineConfig
+	var expectedConfig pipelineConfig
 	json.Unmarshal(makePipeline(pipelineRuleConfig, "parse_config"), &expectedConfig)
 
 	parsedConfig, err := parseConfig(testData)
@@ -90,7 +90,7 @@ func TestParseConfig(t *testing.T) {
 }
 
 func TestNewPipeline(t *testing.T) {
-	pipelineManager := &PipelineManager{
+	pManager := &pipelineManager{
 		backendConfig: backendConfig{
 			Type: "boltdb",
 			BoltDBConfig: boltDBConfig{
@@ -99,18 +99,18 @@ func TestNewPipeline(t *testing.T) {
 			},
 		},
 	}
-	err := pipelineManager.Init()
+	err := pManager.Init()
 	if err != nil {
 		t.Fatalf("Error creating Pipeline Manager: %s", err)
 	}
-	_, err = pipelineManager.NewPipeline(makePipeline(basicRuleConfig, "newPipeline.db"))
+	_, err = pManager.NewPipeline(makePipeline(basicRuleConfig, "newPipeline.db"))
 	if err != nil {
 		t.Errorf("Error creating new pipeline: %s", err)
 	}
 }
 
 func TestNewPipelineWithDuplicateKeys(t *testing.T) {
-	pipelineConfig := PipelineConfig{
+	pConfig := pipelineConfig{
 		EventFolder: "testdata/eventTypes",
 		Rules: map[string]ruleConfig{
 			"aRule": {
@@ -127,14 +127,14 @@ func TestNewPipelineWithDuplicateKeys(t *testing.T) {
 			},
 		},
 	}
-	err := validateConfig(pipelineConfig)
+	err := validateConfig(pConfig)
 	if err.Error() != "Invalid configuration, duplicate keys: [aRule]" {
 		t.Errorf("Expected pipeline with duplicate keys to raise error, but got: %s", err)
 	}
 }
 
 func TestNewPipelineWithInvalidState(t *testing.T) {
-	pipelineConfig := PipelineConfig{
+	pConfig := pipelineConfig{
 		EventFolder: "testdata/eventTypes",
 		Rules: map[string]ruleConfig{
 			"aRule": {
@@ -153,14 +153,14 @@ func TestNewPipelineWithInvalidState(t *testing.T) {
 		},
 	}
 
-	err := validateConfig(pipelineConfig)
+	err := validateConfig(pConfig)
 	if err.Error() != "Invalid state for rule aRule: nonExistant" {
 		t.Errorf("Expected pipeline with invalid state to riase error, but go %s", err)
 	}
 }
 
 func TestNewPipelineWithMultipleRulesUsingState(t *testing.T) {
-	pipelineConfig := PipelineConfig{
+	pConfig := pipelineConfig{
 		EventFolder: "testdata/eventTypes",
 		Rules: map[string]ruleConfig{
 			"aRule": {
@@ -189,14 +189,14 @@ func TestNewPipelineWithMultipleRulesUsingState(t *testing.T) {
 		},
 	}
 
-	err := validateConfig(pipelineConfig)
+	err := validateConfig(pConfig)
 	if err == nil || err.Error() != "Invalid rule configuration, only one rule can use each state but found multiple use state: aState" {
 		t.Errorf("Expected pipeline with invalid state to riase error, but go %v", err)
 	}
 }
 
 func TestStartBasicPipeline(t *testing.T) {
-	pipelineManager := &PipelineManager{
+	pManager := &pipelineManager{
 		backendConfig: backendConfig{
 			Type: "boltdb",
 			BoltDBConfig: boltDBConfig{
@@ -205,11 +205,11 @@ func TestStartBasicPipeline(t *testing.T) {
 			},
 		},
 	}
-	err := pipelineManager.Init()
+	err := pManager.Init()
 	if err != nil {
 		t.Fatalf("Error creating Pipeline Manager: %s", err)
 	}
-	p, err := pipelineManager.NewPipeline(makePipeline(basicRuleConfig, "basicPipeline.db"))
+	p, err := pManager.NewPipeline(makePipeline(basicRuleConfig, "basicPipeline.db"))
 	if err != nil {
 		t.Fatalf("Error creating new pipeline: %s", err)
 	}
@@ -223,7 +223,7 @@ func TestStartBasicPipeline(t *testing.T) {
 }
 
 func TestStartForwardPipeline(t *testing.T) {
-	pipelineManager := &PipelineManager{
+	pManager := &pipelineManager{
 		backendConfig: backendConfig{
 			Type: "boltdb",
 			BoltDBConfig: boltDBConfig{
@@ -232,11 +232,11 @@ func TestStartForwardPipeline(t *testing.T) {
 			},
 		},
 	}
-	err := pipelineManager.Init()
+	err := pManager.Init()
 	if err != nil {
 		t.Fatalf("Error creating Pipeline Manager: %s", err)
 	}
-	p, err := pipelineManager.NewPipeline(makePipeline(pipelineRuleConfig, "forwardPipeline.db"))
+	p, err := pManager.NewPipeline(makePipeline(pipelineRuleConfig, "forwardPipeline.db"))
 	if err != nil {
 		t.Fatalf("Error creating new pipeline: %s", err)
 	}

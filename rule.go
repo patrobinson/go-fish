@@ -28,7 +28,7 @@ type ruleConfig struct {
 	Sink   string `json:"sink,omitempty"`
 }
 
-func NewRule(config ruleConfig, s state.State) (Rule, error) {
+func newRule(config ruleConfig, s state.State) (Rule, error) {
 	plug, err := plugin.Open(config.Plugin)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to load plugin %s: %s", config.Plugin, err)

@@ -27,7 +27,7 @@ func main() {
 }
 
 func startFromConfig(configFile string) {
-	pipelineManager := PipelineManager{
+	pManager := pipelineManager{
 		backendConfig: backendConfig{
 			Type: "boltdb",
 			BoltDBConfig: boltDBConfig{
@@ -36,7 +36,7 @@ func startFromConfig(configFile string) {
 			},
 		},
 	}
-	err := pipelineManager.Init()
+	err := pManager.Init()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func startFromConfig(configFile string) {
 	if err != nil {
 		log.Fatalf("Failed to open Config File: %v", err)
 	}
-	pipeline, err := pipelineManager.NewPipeline(config)
+	pipeline, err := pManager.NewPipeline(config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -60,6 +60,6 @@ func startAPIFromConfig(configFile string) {
 		log.Fatal(err)
 	}
 	apiConfig := parseAPIServerConfig(config)
-	api := &API{}
-	api.Start(apiConfig)
+	a := &api{}
+	a.Start(apiConfig)
 }

@@ -17,8 +17,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// PipelineConfig forms the basic configuration of our processor
-type PipelineConfig struct {
+// pipelineConfig forms the basic configuration of our processor
+type pipelineConfig struct {
 	EventFolder string                        `json:"eventFolder"`
 	Rules       map[string]ruleConfig         `json:"rules"`
 	States      map[string]state.StateConfig  `json:"states"`
@@ -26,14 +26,14 @@ type PipelineConfig struct {
 	Sinks       map[string]output.SinkConfig  `json:"sinks"`
 }
 
-func parseConfig(rawConfig []byte) (PipelineConfig, error) {
-	var config PipelineConfig
+func parseConfig(rawConfig []byte) (pipelineConfig, error) {
+	var config pipelineConfig
 	err := json.Unmarshal(rawConfig, &config)
 	log.Debugf("Config Parsed: ", config)
 	return config, err
 }
 
-func validateConfig(config PipelineConfig) error {
+func validateConfig(config pipelineConfig) error {
 	stateUsage := make(map[string]int)
 	// Validate that any Sources, Sinks and States a Rule points to exist
 	for ruleName, rule := range config.Rules {
@@ -98,24 +98,24 @@ func findDuplicates(s []reflect.Value) []string {
 	return result
 }
 
-// Pipeline is a Directed Acyclic Graph
-type Pipeline struct {
+// pipeline is a Directed Acyclic Graph
+type pipeline struct {
 	ID          uuid.UUID
 	Config      []byte
 	Nodes       map[string]*pipelineNode
 	eventFolder string
 }
 
-func (p *Pipeline) AddVertex(name string, vertex *pipelineNode) {
+func (p *pipeline) addVertex(name string, vertex *pipelineNode) {
 	p.Nodes[name] = vertex
 }
 
-func (p *Pipeline) AddEdge(from, to *pipelineNode) {
+func (p *pipeline) addEdge(from, to *pipelineNode) {
 	from.AddChild(to)
 	to.AddParent(from)
 }
 
-func (p *Pipeline) sources() []*pipelineNode {
+func (p *pipeline) sources() []*pipelineNode {
 	var sources []*pipelineNode
 	for _, node := range p.Nodes {
 		if node.InDegree() == 0 {
@@ -125,7 +125,7 @@ func (p *Pipeline) sources() []*pipelineNode {
 	return sources
 }
 
-func (p *Pipeline) internals() map[string]*pipelineNode {
+func (p *pipeline) internals() map[string]*pipelineNode {
 	internals := make(map[string]*pipelineNode)
 	for nodeName, node := range p.Nodes {
 		if node.OutDegree() != 0 && node.InDegree() != 0 {
@@ -135,7 +135,7 @@ func (p *Pipeline) internals() map[string]*pipelineNode {
 	return internals
 }
 
-func (p *Pipeline) sinks() []*pipelineNode {
+func (p *pipeline) sinks() []*pipelineNode {
 	var sinks []*pipelineNode
 	for _, node := range p.Nodes {
 		if node.OutDegree() == 0 {
@@ -145,7 +145,7 @@ func (p *Pipeline) sinks() []*pipelineNode {
 	return sinks
 }
 
-type PipelineNodeAPI interface {
+type pipelineNodeAPI interface {
 	Init() error
 	Close() error
 }
@@ -153,7 +153,7 @@ type PipelineNodeAPI interface {
 type pipelineNode struct {
 	inputChan     *chan interface{}
 	outputChan    *chan interface{}
-	value         PipelineNodeAPI
+	value         pipelineNodeAPI
 	children      []*pipelineNode
 	parents       []*pipelineNode
 	windowManager *windowManager
@@ -215,39 +215,39 @@ func makeSink(sinkConfig output.SinkConfig, sinkImpl output.SinkIface) (*pipelin
 	}, nil
 }
 
-type PipelineManager struct {
+type pipelineManager struct {
 	backendConfig
 	Backend    backend
 	sourceImpl input.SourceIface
 	sinkImpl   output.SinkIface
 }
 
-func (p *PipelineManager) Init() error {
+func (pM *pipelineManager) Init() error {
 	log.Debugln("Initialising Pipeline Manager")
 	var err error
-	p.Backend, err = p.backendConfig.Create()
+	pM.Backend, err = pM.backendConfig.Create()
 	if err != nil {
 		return err
 	}
 
-	if p.sourceImpl == nil {
-		p.sourceImpl = &input.DefaultSource{}
+	if pM.sourceImpl == nil {
+		pM.sourceImpl = &input.DefaultSource{}
 	}
-	if p.sinkImpl == nil {
-		p.sinkImpl = &output.DefaultSink{}
+	if pM.sinkImpl == nil {
+		pM.sinkImpl = &output.DefaultSink{}
 	}
-	return p.Backend.Init()
+	return pM.Backend.Init()
 }
 
-func (p *PipelineManager) Store(pipeline *Pipeline) error {
-	return p.Backend.Store(pipeline)
+func (pM *pipelineManager) Store(p *pipeline) error {
+	return pM.Backend.Store(p)
 }
 
-func (p *PipelineManager) Get(uuid []byte) ([]byte, error) {
-	return p.Backend.Get(uuid)
+func (pM *pipelineManager) Get(uuid []byte) ([]byte, error) {
+	return pM.Backend.Get(uuid)
 }
 
-func (p *PipelineManager) NewPipeline(rawConfig []byte) (*Pipeline, error) {
+func (pM *pipelineManager) NewPipeline(rawConfig []byte) (*pipeline, error) {
 	log.Debugln("Creating new pipeline")
 	config, err := parseConfig(rawConfig)
 	if err != nil {
@@ -257,7 +257,7 @@ func (p *PipelineManager) NewPipeline(rawConfig []byte) (*Pipeline, error) {
 		return nil, fmt.Errorf("Error validating config %s", err)
 	}
 
-	pipeline := &Pipeline{
+	pipe := &pipeline{
 		ID:          uuid.New(),
 		Config:      rawConfig,
 		eventFolder: config.EventFolder,
@@ -265,19 +265,19 @@ func (p *PipelineManager) NewPipeline(rawConfig []byte) (*Pipeline, error) {
 	}
 
 	for sourceName, sourceConfig := range config.Sources {
-		source, err := makeSource(sourceConfig, p.sourceImpl)
+		source, err := makeSource(sourceConfig, pM.sourceImpl)
 		if err != nil {
 			return nil, fmt.Errorf("Error creating source %s", err)
 		}
-		pipeline.AddVertex(sourceName, source)
+		pipe.addVertex(sourceName, source)
 	}
 
 	for sinkName, sinkConfig := range config.Sinks {
-		sink, err := makeSink(sinkConfig, p.sinkImpl)
+		sink, err := makeSink(sinkConfig, pM.sinkImpl)
 		if err != nil {
 			return nil, fmt.Errorf("Error creating sink %s", err)
 		}
-		pipeline.AddVertex(sinkName, sink)
+		pipe.addVertex(sinkName, sink)
 	}
 
 	for ruleName, ruleConfig := range config.Rules {
@@ -292,34 +292,34 @@ func (p *PipelineManager) NewPipeline(rawConfig []byte) (*Pipeline, error) {
 			ruleState = nil
 		}
 
-		rule, err := NewRule(ruleConfig, ruleState)
+		rule, err := newRule(ruleConfig, ruleState)
 		if err != nil {
 			return nil, fmt.Errorf("Error creating rule %s", err)
 		}
 		ruleNode := &pipelineNode{
 			value: rule,
 		}
-		pipeline.AddVertex(ruleName, ruleNode)
+		pipe.addVertex(ruleName, ruleNode)
 	}
 
 	// Once all rules exist we can plumb them.
 	// Doing so before this requires they be defined in the config in the order
 	// that they are created in.
 	for ruleName, ruleConfig := range config.Rules {
-		ruleNode := pipeline.Nodes[ruleName]
-		pipeline.AddEdge(ruleNode, pipeline.Nodes[ruleConfig.Sink])
-		pipeline.AddEdge(pipeline.Nodes[ruleConfig.Source], ruleNode)
+		ruleNode := pipe.Nodes[ruleName]
+		pipe.addEdge(ruleNode, pipe.Nodes[ruleConfig.Sink])
+		pipe.addEdge(pipe.Nodes[ruleConfig.Source], ruleNode)
 	}
 
-	err = p.Store(pipeline)
+	err = pM.Store(pipe)
 	if err != nil {
 		return nil, fmt.Errorf("Error storing pipeline %s", err)
 	}
 
-	return pipeline, nil
+	return pipe, nil
 }
 
-func (p *Pipeline) StartPipeline() error {
+func (p *pipeline) StartPipeline() error {
 	for _, sink := range p.sinks() {
 		sVal, ok := sink.value.(output.Sink)
 		if !ok {
@@ -386,7 +386,7 @@ func (p *Pipeline) StartPipeline() error {
 	return nil
 }
 
-func (p *Pipeline) Close() {
+func (p *pipeline) Close() {
 	log.Debug("Closing input channels\n")
 	for _, s := range p.sources() {
 		s.Close()
