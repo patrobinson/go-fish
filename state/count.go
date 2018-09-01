@@ -8,7 +8,7 @@ type Counter struct {
 	Count int
 }
 
-// Init initalises the counter
+// Init initialises the counter
 func (c *Counter) Init() error {
 	c.Count = 0
 	return nil

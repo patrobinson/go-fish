@@ -16,7 +16,7 @@ type CertStreamInput struct {
 	stream chan jsonq.JsonQuery
 }
 
-// Init initalises the input stream
+// Init initialises the input stream
 func (c *CertStreamInput) Init() error {
 	c.stream = certstream.CertStreamEventStream(false)
 	return nil
