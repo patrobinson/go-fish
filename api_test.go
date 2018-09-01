@@ -58,7 +58,12 @@ func TestMain(m *testing.M) {
 			},
 		},
 	})
-	time.Sleep(200 * time.Millisecond)
+	for {
+		if a.apiReady {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 	code := m.Run()
 	os.Exit(code)
 }

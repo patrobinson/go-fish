@@ -219,7 +219,12 @@ func TestStartBasicPipeline(t *testing.T) {
 			t.Errorf("Error starting pipeline: %s", err)
 		}
 	}()
-	time.Sleep(1 * time.Second)
+	for {
+		if p.pipelineReady {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 }
 
 func TestStartForwardPipeline(t *testing.T) {
