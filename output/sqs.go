@@ -24,7 +24,7 @@ type SQSOutput struct {
 	wg       *sync.WaitGroup
 }
 
-func (o *SQSOutput) Init() error {
+func (o *SQSOutput) Init(...interface{}) error {
 	session, err := session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 		Config:            aws.Config{Region: &o.Region},
@@ -46,6 +46,7 @@ func (o *SQSOutput) Sink(input *chan interface{}) {
 		if i == nil {
 			continue
 		}
+
 		data := i.(*OutputEvent)
 		rawData, _ := json.Marshal(data)
 		sendMessageParams := &sqs.SendMessageInput{

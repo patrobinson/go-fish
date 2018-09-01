@@ -13,7 +13,7 @@ type SinkConfig struct {
 // Sink is an interface for output implementations
 type Sink interface {
 	Sink(*chan interface{})
-	Init() error
+	Init(...interface{}) error
 	Close() error
 }
 

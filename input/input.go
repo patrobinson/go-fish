@@ -7,7 +7,7 @@ import (
 // Source is an interface for input implemenations
 type Source interface {
 	Retrieve(*chan interface{})
-	Init() error
+	Init(...interface{}) error
 	Close() error
 }
 

@@ -7,6 +7,13 @@ Go Fish seeks to implement similar functionality to Apache Samza, without tight 
 
 **Development Status**: Ready for alpha testing
 
+
+## Project Goals
+
+Go Fish is designed to provide a lower barrier of entry for Stream Processing than the Apache family of frameworks. The existing frameworks are predominantly written in Java and require at the very lease ZooKeeper to run, but usually Kafka and potentially Hadoop.
+
+While projects like [Wallaroo](https://github.com/wallaroolabs/wallaroo) exist that provide native Go integration and are easier to get started it only supports Kafka and TCP as an input source. Go Fish aims to leverage existing cloud tooling like Kinesis and DynamoDB to provide easier setup and maintenance. Support for other cloud providers may be added in the future.
+
 ## Bare minimum
 
 The bare minimum to have a working example requires you to create a Rule and an Event Type.
@@ -50,7 +57,7 @@ make certstream-example
 
 ### Defining a Pipeline
 
-A Pipeline contains four top level keys, `eventFolder`, `rules`, `states`, `sources` and `sinks`. In a rule definition the source, state and sink should refer to a key in the respective top level.
+A Pipeline contains five top level keys, `eventFolder`, `rules`, `states`, `sources` and `sinks`. In a rule definition the source, state and sink should refer to a key in the respective top level.
 
 ```json
 {
@@ -92,7 +99,7 @@ A Pipeline contains four top level keys, `eventFolder`, `rules`, `states`, `sour
 }
 ```
 
-This Pipeline would create a Directed Acyclical Graph like so:
+This Pipeline would create a Directed Acyclical Graph like so, although more complex topologies are possible:
 
 ```
 fileInput ----> searchRule ----> conversionRule ----> fileOutput
@@ -100,7 +107,7 @@ fileInput ----> searchRule ----> conversionRule ----> fileOutput
 
 ### Creating an Event Struct
 
-The Event Struct can simply defines the data structure for the event and implements the `event` interface. This is a trivial example where the event contains just a single string:
+The Event Struct simply defines the data structure for the event and implements the `event` interface. This is a trivial example where the event contains just a single string:
 
 ```
 package eventStructs
@@ -138,12 +145,21 @@ It implements the Rule interface.
 
 ```
 type Rule interface {
-	Init() error
-  SetState(state.State) error
+	Init(state ...interface{}) error
 	Process(interface{}) interface{}
 	String() string
 	WindowInterval() int
 	Window() ([]output.OutputEvent, error)
 	Close() error
+}
+```
+
+Simple rules that do not require state or windowing can utilise the BasicRule helper. This implements everything except for the `Process` and `String` methods.
+
+```
+import "github.com/patrobinson/go-fish/ruleHelpers"
+
+type simpleRule struct {
+	rulehelpers.BasicRule
 }
 ```

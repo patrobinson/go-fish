@@ -22,7 +22,7 @@ type KafkaInput struct {
 	outputChan    *chan interface{}
 }
 
-func (k *KafkaInput) Init() error {
+func (k *KafkaInput) Init(...interface{}) error {
 	var err error
 	k.consumer, err = sarama.NewConsumer([]string{k.Broker}, nil)
 	if err != nil {

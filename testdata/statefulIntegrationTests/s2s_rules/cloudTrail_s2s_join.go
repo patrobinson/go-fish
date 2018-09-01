@@ -15,17 +15,17 @@ type cloudTrailRule struct {
 	kvStore *state.KVStore
 }
 
-func (rule *cloudTrailRule) Init() error {
-	return nil
-}
-
-func (rule *cloudTrailRule) SetState(s state.State) error {
-	var ok bool
-	rule.kvStore, ok = s.(*state.KVStore)
-	if !ok {
-		return fmt.Errorf("This rule expects a KVStore state, but got: %s", rule.State)
+func (rule *cloudTrailRule) Init(s ...interface{}) error {
+	invalidStateError := fmt.Errorf("This rule expects a KVStore state, but got: %v", s)
+	if len(s) < 1 {
+		return invalidStateError
 	}
-	return nil
+	var ok bool
+	rule.kvStore, ok = s[0].(*state.KVStore)
+	if !ok {
+		return invalidStateError
+	}
+	return rule.kvStore.Init()
 }
 
 func (rule *cloudTrailRule) Window() ([]output.OutputEvent, error) {

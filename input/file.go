@@ -15,7 +15,7 @@ type FileInput struct {
 	FileName string
 }
 
-func (i *FileInput) Init() error {
+func (i *FileInput) Init(...interface{}) error {
 	return nil
 }
 

@@ -11,9 +11,9 @@ import (
 )
 
 // Rule is an interface for rule implementations
+// Rules implement this interface as a plugin
 type Rule interface {
-	Init() error
-	SetState(state.State) error
+	Init(...interface{}) error
 	Process(interface{}) interface{}
 	String() string
 	WindowInterval() int
@@ -41,16 +41,8 @@ func newRule(config ruleConfig, s state.State) (Rule, error) {
 	if !ok {
 		return nil, errors.New("Rule is not a rule type")
 	}
-	if err := rule.Init(); err != nil {
+	if err := rule.Init(s); err != nil {
 		return nil, err
-	}
-	if s != nil {
-		if err := s.Init(); err != nil {
-			return nil, fmt.Errorf("Error initialising state %s", err)
-		}
-		if err := rule.SetState(s); err != nil {
-			return nil, fmt.Errorf("Error setting state %s", err)
-		}
 	}
 	return rule, nil
 }

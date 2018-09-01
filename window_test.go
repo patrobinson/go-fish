@@ -5,16 +5,13 @@ import (
 	"time"
 
 	"github.com/patrobinson/go-fish/output"
-	"github.com/patrobinson/go-fish/state"
 )
 
 type TestRule struct {
 	windowCounter int
 }
 
-func (r *TestRule) Init() error { return nil }
-
-func (r *TestRule) SetState(s state.State) error { return nil }
+func (r *TestRule) Init(...interface{}) error { return nil }
 
 func (r *TestRule) Close() error { return nil }
 

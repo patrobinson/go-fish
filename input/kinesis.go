@@ -41,7 +41,7 @@ func (p *recordConsumer) Shutdown() {
 const tableName = "GoFish"
 
 // Init implements initialises the Input mechanism
-func (ki *KinesisInput) Init() error {
+func (ki *KinesisInput) Init(...interface{}) error {
 	ki.kinesisConsumer = &gokini.KinesisConsumer{
 		StreamName:           ki.StreamName,
 		ShardIteratorType:    "TRIM_HORIZON",

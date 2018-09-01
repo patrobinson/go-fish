@@ -19,7 +19,7 @@ type testInput struct {
 	value []byte
 }
 
-func (t testInput) Init() error {
+func (t testInput) Init(...interface{}) error {
 	return nil
 }
 
@@ -36,7 +36,7 @@ type testOutput struct {
 	c *chan bool
 }
 
-func (t testOutput) Init() error {
+func (t testOutput) Init(...interface{}) error {
 	return nil
 }
 
@@ -166,7 +166,7 @@ type benchmarkInput struct {
 	input *chan interface{}
 }
 
-func (t benchmarkInput) Init() error {
+func (t benchmarkInput) Init(...interface{}) error {
 	return nil
 }
 
@@ -275,7 +275,7 @@ type testStatefulInput struct {
 	inputs  int
 }
 
-func (t *testStatefulInput) Init() error {
+func (t *testStatefulInput) Init(...interface{}) error {
 	return nil
 }
 
@@ -295,7 +295,7 @@ type testStatefulOutput struct {
 	c *chan interface{}
 }
 
-func (t *testStatefulOutput) Init() error {
+func (t *testStatefulOutput) Init(...interface{}) error {
 	return nil
 }
 

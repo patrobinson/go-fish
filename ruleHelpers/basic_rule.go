@@ -16,7 +16,7 @@ It can be added to your basic rule like so
 */
 type BasicRule struct{}
 
-func (b *BasicRule) Init() error {
+func (b *BasicRule) Init(...interface{}) error {
 	return nil
 }
 

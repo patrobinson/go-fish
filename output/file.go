@@ -18,7 +18,7 @@ type FileOutput struct {
 	wg       *sync.WaitGroup
 }
 
-func (f *FileOutput) Init() error {
+func (f *FileOutput) Init(...interface{}) error {
 	var err error
 	if _, err := os.Stat(f.FileName); os.IsNotExist(err) {
 		os.Create(f.FileName)

@@ -17,7 +17,7 @@ type CertStreamInput struct {
 }
 
 // Init initialises the input stream
-func (c *CertStreamInput) Init() error {
+func (c *CertStreamInput) Init(...interface{}) error {
 	c.stream = certstream.CertStreamEventStream(false)
 	return nil
 }

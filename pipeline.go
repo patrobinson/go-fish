@@ -146,7 +146,7 @@ func (p *pipeline) sinks() []*pipelineNode {
 }
 
 type pipelineNodeAPI interface {
-	Init() error
+	Init(...interface{}) error
 	Close() error
 }
 
