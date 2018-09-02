@@ -14,7 +14,7 @@ type domainCertIssued struct {
 	domainName *regexp.Regexp
 }
 
-func (d *domainCertIssued) Init() error {
+func (d *domainCertIssued) Init(...interface{}) error {
 	var err error
 	d.domainName, err = regexp.Compile("^www.*")
 	return err
@@ -28,7 +28,7 @@ func (d *domainCertIssued) Window() ([]output.OutputEvent, error) {
 	return []output.OutputEvent{}, nil
 }
 
-func (d *domainCertIssued) Close() {}
+func (d *domainCertIssued) Close() error { return nil }
 
 func (d *domainCertIssued) Process(thing interface{}) interface{} {
 	issuedCert, ok := thing.(es.CertStream)
