@@ -11,18 +11,24 @@ func main() {
 	apiServer := flag.Bool("apiServer", false, "Start an API Server")
 	apiConfig := flag.String("apiConfig", "", "API Server configuration")
 	configFile := flag.String("pipelineConfig", "", "Pipeline Config")
+	debugFlag := flag.Bool("debug", false, "Set debug logging")
+	checkRule := flag.String("checkRule", "", "Test a rule file to ensure it correctly implements the Rule interface")
 	flag.Parse()
 
-	if (*configFile == "" && !*apiServer) || (*apiServer && *configFile != "") {
-		log.Fatal("You must either specify a configuration file or start an API Server")
+	if *debugFlag {
+		log.SetLevel(log.DebugLevel)
 	}
 
-	if *configFile != "" {
+	switch {
+	case *configFile != "":
 		startFromConfig(*configFile)
-	}
-
-	if *apiServer {
+	case *apiServer:
 		startAPIFromConfig(*apiConfig)
+	case *checkRule != "":
+		testRule(*checkRule)
+	default:
+		log.Errorln("Please specify a valid command")
+		flag.Usage()
 	}
 }
 

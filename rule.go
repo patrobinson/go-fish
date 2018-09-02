@@ -28,6 +28,20 @@ type ruleConfig struct {
 	Sink   string `json:"sink,omitempty"`
 }
 
+func testRule(ruleFile string) error {
+	plug, err := plugin.Open(ruleFile)
+	if err != nil {
+		return fmt.Errorf("Unable to load plugin: %s", err)
+	}
+	symRule, err := plug.Lookup("Rule")
+	if err != nil {
+		return fmt.Errorf("Rule has no Rule symbol: %v", err)
+	}
+	_ = symRule.(Rule)
+
+	return nil
+}
+
 func newRule(config ruleConfig, s state.State) (Rule, error) {
 	plug, err := plugin.Open(config.Plugin)
 	if err != nil {
