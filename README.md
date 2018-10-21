@@ -46,7 +46,36 @@ done
 
 ### Usage
 
-go-fish -config pipeline.json
+A trivial pipeline can be defined in a json file and run like so:
+
+```
+go-fish -pipelineConfig pipeline.json
+```
+
+More realisticly you will want to run multiple pipelines. To do this create an API Configuration file and submit your pipelines via the API.
+
+```json
+{
+  "listenAddress": "127.0.0.1:8000",
+  "backendConfig": {
+    "type": "boltdb|dynamodb",
+    "boldDBConfig": {
+      "bucketName": "go-fish",
+      "databaseName": "go"
+    },
+    "dynamoDBConfig": {
+      "region": "us-east-2",
+      "tableName": "go-fish"
+    }
+  }
+}
+```
+
+The DynamoDB Schema must be a Primary Key of "UUID" which is a binary blob and no Hash Key.
+
+```
+go-fish -apiConfig api.json
+```
 
 ### Examples
 
@@ -105,7 +134,7 @@ This Pipeline would create a Directed Acyclical Graph like so, although more com
 fileInput ----> searchRule ----> conversionRule ----> fileOutput
 ```
 
-### Creating an Event Struct
+#### Creating an Event Struct
 
 The Event Struct simply defines the data structure for the event and implements the `event` interface. This is a trivial example where the event contains just a single string:
 
@@ -125,7 +154,7 @@ func (e ExampleType) TypeName() string {
 
 In this example we export the `EventName` variable, which can be re-used in the Event Type to implement the `Name()` method.
 
-### Writing an Event Type
+#### Writing an Event Type
 
 The Event Type is responsible for decoding the Event. It implements the `eventType` interface.
 
@@ -138,7 +167,7 @@ type eventType interface {
 
 Where event is a minimal package that can be imported from `github.com/patrobinson/go-fish/event`.
 
-### Writing a Rule
+#### Writing a Rule
 
 The Rule must also include the Event struct, so that it can assert the Event it receives is the Event Struct it's expecting.
 It implements the Rule interface.
