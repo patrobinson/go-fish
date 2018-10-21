@@ -11,10 +11,17 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type apiConfig struct {
+	ListenAddress    string                  `json:"listenAddress"`
+	Backend          backendConfig           `json:"backendConfig"`
+	MonitoringConfig monitoringConfiguration `json:"monitoringConfig"`
+}
+
 type api struct {
 	pipelineManager *pipelineManager
 	Router          *mux.Router
 	httpServer      *http.Server
+	mService        monitoringService
 }
 
 // Start starts the API server and blocks
@@ -34,6 +41,11 @@ func (a *api) Start(config apiConfig) {
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
 		Handler:      a.Router,
+	}
+
+	a.mService, err = config.MonitoringConfig.init(a.Router)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	a.Router.Path("/pipelines/{id}").Methods("GET").HandlerFunc(a.GetPipelines)
@@ -107,13 +119,9 @@ func (a *api) CreatePipeline(w http.ResponseWriter, r *http.Request) {
 			log.Errorln("Pipeline failed:", err)
 		}
 	}()
+	a.mService.incrPipelines(pipeline.ID.String())
 	w.WriteHeader(201)
 	w.Write([]byte(pipeline.ID.String()))
-}
-
-type apiConfig struct {
-	ListenAddress string        `json:"listenAddress"`
-	Backend       backendConfig `json:"backendConfig"`
 }
 
 func parseAPIServerConfig(config []byte) apiConfig {

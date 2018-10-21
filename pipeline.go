@@ -29,7 +29,7 @@ type pipelineConfig struct {
 func parseConfig(rawConfig []byte) (pipelineConfig, error) {
 	var config pipelineConfig
 	err := json.Unmarshal(rawConfig, &config)
-	log.Debugf("Config Parsed: ", config)
+	log.Debugf("Config Parsed: %v", config)
 	return config, err
 }
 

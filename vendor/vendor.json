@@ -21,12 +21,6 @@
 			"revisionTime": "2017-08-14T12:50:27Z"
 		},
 		{
-			"checksumSHA1": "9X1/hLR+WoHu3Vg6SDKF6W6Rjm4=",
-			"path": "github.com/sirupsen/logrus",
-			"revision": "7dd06bf38e1e13df288d471a57d5adbac106be9e",
-			"revisionTime": "2017-06-30T00:54:20Z"
-		},
-		{
 			"checksumSHA1": "t3jF/z1q8MUsLfxmDaDWYISNfZk=",
 			"path": "github.com/aws/aws-sdk-go/aws",
 			"revision": "59a21fcfacca3b32766b385235797649ec791e48",
@@ -363,10 +357,22 @@
 			"revisionTime": "2018-04-16T23:38:56Z"
 		},
 		{
+			"checksumSHA1": "UBqhkyjCz47+S19MVTigxJ2VjVQ=",
+			"path": "github.com/prometheus/client_golang/prometheus/internal",
+			"revision": "1cafe34db7fdec6022e17e00e1c1ea501022f3e4",
+			"revisionTime": "2018-10-15T14:52:39Z"
+		},
+		{
 			"checksumSHA1": "MYqKV5uVTfCxP9zBug7naBQ1vr8=",
 			"path": "github.com/prometheus/client_golang/prometheus/promhttp",
 			"revision": "82f5ff156b29e276022b1a958f7d385870fb9814",
 			"revisionTime": "2018-04-16T23:38:56Z"
+		},
+		{
+			"checksumSHA1": "hhME1YRdnnaE4kDsemDH+sqi9ck=",
+			"path": "github.com/prometheus/client_golang/prometheus/testutil",
+			"revision": "1cafe34db7fdec6022e17e00e1c1ea501022f3e4",
+			"revisionTime": "2018-10-15T14:52:39Z"
 		},
 		{
 			"checksumSHA1": "DvwvOlPNAgRntBzt3b3OSRMS2N4=",
@@ -421,6 +427,12 @@
 			"path": "github.com/rcrowley/go-metrics",
 			"revision": "1f30fe9094a513ce4c700b9a54458bbb0c96996c",
 			"revisionTime": "2016-11-28T21:05:44Z"
+		},
+		{
+			"checksumSHA1": "9X1/hLR+WoHu3Vg6SDKF6W6Rjm4=",
+			"path": "github.com/sirupsen/logrus",
+			"revision": "7dd06bf38e1e13df288d471a57d5adbac106be9e",
+			"revisionTime": "2017-06-30T00:54:20Z"
 		},
 		{
 			"checksumSHA1": "qCuKXLGOd2PedjXMLl7sSuxbZiI=",
