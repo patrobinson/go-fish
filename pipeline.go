@@ -366,6 +366,7 @@ func (p *pipeline) StartPipeline() error {
 				evt, err := matchEventType(eventTypes, data)
 				if err != nil {
 					log.Infof("Error matching event: %v %v", err, data)
+					continue
 				}
 				for _, node := range source.Children() {
 					*node.inputChan <- evt
