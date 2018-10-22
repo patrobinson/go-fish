@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -22,6 +25,7 @@ type api struct {
 	Router          *mux.Router
 	httpServer      *http.Server
 	mService        monitoringService
+	apiReady        bool
 }
 
 // Start starts the API server and blocks
@@ -50,10 +54,24 @@ func (a *api) Start(config apiConfig) {
 
 	a.Router.Path("/pipelines/{id}").Methods("GET").HandlerFunc(a.GetPipelines)
 	a.Router.Path("/pipelines").Methods("POST").HandlerFunc(a.CreatePipeline)
-	err = a.httpServer.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
-		log.Fatal(err)
+	go func(a *api) {
+		err = a.httpServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+	}(a)
+
+	a.apiReady = true
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	for sig := range c {
+		log.Infof("Received %s signal... exiting\n", sig)
+		break
 	}
+
+	a.Shutdown()
 }
 
 // Shutdown the API Server

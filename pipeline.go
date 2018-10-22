@@ -101,12 +101,13 @@ func findDuplicates(s []reflect.Value) []string {
 
 // pipeline is a Directed Acyclic Graph
 type pipeline struct {
-	ID          uuid.UUID
-	Name        string
-	Config      []byte
-	Nodes       map[string]*pipelineNode
-	eventFolder string
-	mService    monitoringService
+	ID            uuid.UUID
+	Name          string
+	Config        []byte
+	Nodes         map[string]*pipelineNode
+	eventFolder   string
+	pipelineReady bool
+	mService      monitoringService
 }
 
 func (p *pipeline) addVertex(name string, vertex *pipelineNode) {
@@ -368,6 +369,8 @@ func (p *pipeline) StartPipeline() error {
 		}
 		go runSource(source, eventTypes, p.mService)
 	}
+
+	p.pipelineReady = true
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
