@@ -98,7 +98,7 @@ func (a *api) CreatePipeline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Debugln("Creating pipeline with config", string(body))
-	pipeline, err := a.pipelineManager.NewPipeline(body)
+	pipeline, err := a.pipelineManager.NewPipeline(body, a.mService)
 	if err != nil {
 		log.Errorln("Error creating pipeline", err)
 		w.WriteHeader(400)
@@ -119,7 +119,7 @@ func (a *api) CreatePipeline(w http.ResponseWriter, r *http.Request) {
 			log.Errorln("Pipeline failed:", err)
 		}
 	}()
-	a.mService.incrPipelines(pipeline.ID.String())
+	a.mService.incrPipelines(pipeline.Name)
 	w.WriteHeader(201)
 	w.Write([]byte(pipeline.ID.String()))
 }

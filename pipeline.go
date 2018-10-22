@@ -19,6 +19,7 @@ import (
 
 // pipelineConfig forms the basic configuration of our processor
 type pipelineConfig struct {
+	Name        string
 	EventFolder string                        `json:"eventFolder"`
 	Rules       map[string]ruleConfig         `json:"rules"`
 	States      map[string]state.Config       `json:"states"`
@@ -101,9 +102,11 @@ func findDuplicates(s []reflect.Value) []string {
 // pipeline is a Directed Acyclic Graph
 type pipeline struct {
 	ID          uuid.UUID
+	Name        string
 	Config      []byte
 	Nodes       map[string]*pipelineNode
 	eventFolder string
+	mService    monitoringService
 }
 
 func (p *pipeline) addVertex(name string, vertex *pipelineNode) {
@@ -157,6 +160,7 @@ type pipelineNode struct {
 	children      []*pipelineNode
 	parents       []*pipelineNode
 	windowManager *windowManager
+	pipelineName  string
 }
 
 func (node *pipelineNode) Init() error {
@@ -191,27 +195,29 @@ func (node *pipelineNode) OutDegree() int {
 	return len(node.children)
 }
 
-func makeSource(sourceConfig input.SourceConfig, sourceImpl input.SourceIface) (*pipelineNode, error) {
+func makeSource(sourceConfig input.SourceConfig, sourceImpl input.SourceIface, name string) (*pipelineNode, error) {
 	sourceChan := make(chan interface{})
 	source, err := sourceImpl.Create(sourceConfig)
 	if err != nil {
 		return nil, err
 	}
 	return &pipelineNode{
-		outputChan: &sourceChan,
-		value:      source,
+		outputChan:   &sourceChan,
+		value:        source,
+		pipelineName: name,
 	}, nil
 }
 
-func makeSink(sinkConfig output.SinkConfig, sinkImpl output.SinkIface) (*pipelineNode, error) {
+func makeSink(sinkConfig output.SinkConfig, sinkImpl output.SinkIface, name string) (*pipelineNode, error) {
 	sinkChan := make(chan interface{})
 	sink, err := sinkImpl.Create(sinkConfig)
 	if err != nil {
 		return nil, err
 	}
 	return &pipelineNode{
-		inputChan: &sinkChan,
-		value:     sink,
+		inputChan:    &sinkChan,
+		value:        sink,
+		pipelineName: name,
 	}, nil
 }
 
@@ -247,7 +253,7 @@ func (pM *pipelineManager) Get(uuid []byte) ([]byte, error) {
 	return pM.Backend.Get(uuid)
 }
 
-func (pM *pipelineManager) NewPipeline(rawConfig []byte) (*pipeline, error) {
+func (pM *pipelineManager) NewPipeline(rawConfig []byte, mService monitoringService) (*pipeline, error) {
 	log.Debugln("Creating new pipeline")
 	config, err := parseConfig(rawConfig)
 	if err != nil {
@@ -258,14 +264,16 @@ func (pM *pipelineManager) NewPipeline(rawConfig []byte) (*pipeline, error) {
 	}
 
 	pipe := &pipeline{
+		Name:        config.Name,
 		ID:          uuid.New(),
 		Config:      rawConfig,
 		eventFolder: config.EventFolder,
 		Nodes:       make(map[string]*pipelineNode),
+		mService:    mService,
 	}
 
 	for sourceName, sourceConfig := range config.Sources {
-		source, err := makeSource(sourceConfig, pM.sourceImpl)
+		source, err := makeSource(sourceConfig, pM.sourceImpl, config.Name)
 		if err != nil {
 			return nil, fmt.Errorf("Error creating source %s", err)
 		}
@@ -273,7 +281,7 @@ func (pM *pipelineManager) NewPipeline(rawConfig []byte) (*pipeline, error) {
 	}
 
 	for sinkName, sinkConfig := range config.Sinks {
-		sink, err := makeSink(sinkConfig, pM.sinkImpl)
+		sink, err := makeSink(sinkConfig, pM.sinkImpl, config.Name)
 		if err != nil {
 			return nil, fmt.Errorf("Error creating sink %s", err)
 		}
@@ -297,7 +305,8 @@ func (pM *pipelineManager) NewPipeline(rawConfig []byte) (*pipeline, error) {
 			return nil, fmt.Errorf("Error creating rule %s", err)
 		}
 		ruleNode := &pipelineNode{
-			value: rule,
+			value:        rule,
+			pipelineName: config.Name,
 		}
 		pipe.addVertex(ruleName, ruleNode)
 	}
@@ -342,11 +351,7 @@ func (p *pipeline) StartPipeline() error {
 		}
 		(*rule).inputChan = startRule(rVal, rule.outputChan, rule.windowManager)
 		for _, child := range rule.Children() {
-			go func(sink *pipelineNode, source *pipelineNode) {
-				for evt := range *source.outputChan {
-					*sink.inputChan <- evt
-				}
-			}(child, rule)
+			go runRule(child, rule)
 		}
 	}
 
@@ -361,18 +366,7 @@ func (p *pipeline) StartPipeline() error {
 		if err != nil {
 			return err
 		}
-		go func(source *pipelineNode) {
-			for data := range *source.outputChan {
-				evt, err := matchEventType(eventTypes, data)
-				if err != nil {
-					log.Infof("Error matching event: %v %v", err, data)
-					continue
-				}
-				for _, node := range source.Children() {
-					*node.inputChan <- evt
-				}
-			}
-		}(source)
+		go runSource(source, eventTypes, p.mService)
 	}
 
 	c := make(chan os.Signal, 1)
@@ -385,6 +379,26 @@ func (p *pipeline) StartPipeline() error {
 
 	p.Close()
 	return nil
+}
+
+func runRule(sink *pipelineNode, source *pipelineNode) {
+	for evt := range *source.outputChan {
+		*sink.inputChan <- evt
+	}
+}
+
+func runSource(source *pipelineNode, eventTypes []eventType, mService monitoringService) {
+	for data := range *source.outputChan {
+		evt, err := matchEventType(eventTypes, data)
+		if err != nil {
+			log.Infof("Error matching event: %v %v", err, data)
+			continue
+		}
+		for _, node := range source.Children() {
+			mService.incrEventReceived(source.pipelineName)
+			*node.inputChan <- evt
+		}
+	}
 }
 
 func (p *pipeline) Close() {

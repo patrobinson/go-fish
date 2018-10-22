@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -71,8 +72,11 @@ func executeRequest(req *http.Request) *httptest.ResponseRecorder {
 }
 
 func TestGetPipelines(t *testing.T) {
-
-	pipeline, err := a.pipelineManager.NewPipeline(pConfig)
+	mConfig := monitoringConfiguration{
+		MonitoringService: "", // Noop service
+	}
+	mService, err := mConfig.init(mux.NewRouter())
+	pipeline, err := a.pipelineManager.NewPipeline(pConfig, mService)
 	if err != nil {
 		t.Fatalf("Error creating pipeline %s", err)
 	}

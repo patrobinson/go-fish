@@ -27,6 +27,7 @@ type monitoringConfiguration struct {
 type monitoringService interface {
 	init(*mux.Router) error
 	incrPipelines(string)
+	incrEventReceived(string)
 }
 
 func (m *monitoringConfiguration) init(r *mux.Router) (monitoringService, error) {
@@ -48,10 +49,12 @@ type noopMonitoringService struct{}
 
 func (n *noopMonitoringService) init(_ *mux.Router) error { return nil }
 func (n *noopMonitoringService) incrPipelines(string)     {}
+func (n *noopMonitoringService) incrEventReceived(string) {}
 
 type prometheusMonitoringService struct {
 	Namespace string
 	pipelines *prometheus.GaugeVec
+	events    *prometheus.CounterVec
 }
 
 func (p *prometheusMonitoringService) init(r *mux.Router) error {
@@ -60,12 +63,17 @@ func (p *prometheusMonitoringService) init(r *mux.Router) error {
 	}
 
 	p.pipelines = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: p.Namespace + `_pipelines`,
+		Name: p.Namespace + `Pipelines`,
 		Help: "The number of pipelines configured",
+	}, []string{"pipelineName"})
+	p.events = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: p.Namespace + `EventsReceived`,
+		Help: "The number of events received",
 	}, []string{"pipelineName"})
 
 	metrics := []prometheus.Collector{
 		p.pipelines,
+		p.events,
 	}
 	for _, metric := range metrics {
 		err := prometheus.Register(metric)
@@ -82,6 +90,10 @@ func (p *prometheusMonitoringService) incrPipelines(pipelineName string) {
 	p.pipelines.With(prometheus.Labels{"pipelineName": pipelineName}).Add(float64(1))
 }
 
+func (p *prometheusMonitoringService) incrEventReceived(pipelineName string) {
+	p.events.With(prometheus.Labels{"pipelineName": pipelineName}).Add(float64(1))
+}
+
 type cloudWatchMonitoringService struct {
 	Namespace string
 	// What granularity we should send metrics to CW at. Note setting this to 1 will cost quite a bit of money
@@ -92,7 +104,8 @@ type cloudWatchMonitoringService struct {
 }
 
 type cloudWatchMetrics struct {
-	pipelines float64
+	pipelines      float64
+	eventsReceived float64
 	sync.Mutex
 }
 
@@ -147,6 +160,18 @@ func (cw *cloudWatchMonitoringService) flush() {
 					Timestamp:  &metricTimestamp,
 					Value:      aws.Float64(metric.pipelines),
 				},
+				&cloudwatch.MetricDatum{
+					Dimensions: []*cloudwatch.Dimension{
+						{
+							Name:  aws.String("Pipeline"),
+							Value: &pipeline,
+						},
+					},
+					MetricName: aws.String("EventsReceived"),
+					Unit:       aws.String("Count"),
+					Timestamp:  &metricTimestamp,
+					Value:      aws.Float64(metric.eventsReceived),
+				},
 			},
 		})
 		metric.Unlock()
@@ -156,11 +181,21 @@ func (cw *cloudWatchMonitoringService) flush() {
 	}
 }
 
+// With all the locking this is probably really innefficent at scale
 func (cw *cloudWatchMonitoringService) incrPipelines(pipelineName string) {
-	if _, ok := cw.pipelineMetrics["pipelines"]; !ok {
+	if _, ok := cw.pipelineMetrics[pipelineName]; !ok {
 		cw.pipelineMetrics[pipelineName] = &cloudWatchMetrics{}
 	}
 	cw.pipelineMetrics[pipelineName].Lock()
 	defer cw.pipelineMetrics[pipelineName].Unlock()
 	cw.pipelineMetrics[pipelineName].pipelines += float64(1)
+}
+
+func (cw *cloudWatchMonitoringService) incrEventReceived(pipelineName string) {
+	if _, ok := cw.pipelineMetrics[pipelineName]; !ok {
+		cw.pipelineMetrics[pipelineName] = &cloudWatchMetrics{}
+	}
+	cw.pipelineMetrics[pipelineName].Lock()
+	defer cw.pipelineMetrics[pipelineName].Unlock()
+	cw.pipelineMetrics[pipelineName].eventsReceived += float64(1)
 }

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"io/ioutil"
 
+	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -50,7 +51,14 @@ func startFromConfig(configFile string) {
 	if err != nil {
 		log.Fatalf("Failed to open Config File: %v", err)
 	}
-	pipeline, err := pManager.NewPipeline(config)
+	mConfig := monitoringConfiguration{
+		MonitoringService: "", // Noop service
+	}
+	mService, err := mConfig.init(mux.NewRouter())
+	if err != nil {
+		log.Fatalf("Failed to create noop monitoring service %s", err)
+	}
+	pipeline, err := pManager.NewPipeline(config, mService)
 	if err != nil {
 		log.Fatal(err)
 	}

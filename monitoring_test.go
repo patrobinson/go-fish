@@ -72,11 +72,11 @@ func TestPrometheusMonitoring(t *testing.T) {
 		t.Fatalf("Error getting metrics %s", err)
 	}
 	gatherer := prometheus.DefaultGatherer
-	expected := bytes.NewReader([]byte(`# HELP TestPrometheusMonitoring_pipelines The number of pipelines configured
-	# TYPE TestPrometheusMonitoring_pipelines gauge
-	TestPrometheusMonitoring_pipelines{pipelineName="pipeline"} 1
+	expected := bytes.NewReader([]byte(`# HELP TestPrometheusMonitoringPipelines The number of pipelines configured
+	# TYPE TestPrometheusMonitoringPipelines gauge
+	TestPrometheusMonitoringPipelines{pipelineName="pipeline"} 1
 `))
-	err = testutil.GatherAndCompare(gatherer, expected, "TestPrometheusMonitoring_pipelines")
+	err = testutil.GatherAndCompare(gatherer, expected, "TestPrometheusMonitoringPipelines")
 	if err != nil {
 		t.Error(err)
 	}

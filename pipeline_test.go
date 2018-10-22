@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/patrobinson/go-fish/input"
 	"github.com/patrobinson/go-fish/output"
 	"github.com/patrobinson/go-fish/state"
@@ -74,6 +75,14 @@ func makePipeline(rc map[string]ruleConfig, dbName string) []byte {
 	return pConfig
 }
 
+func makeMonitoringService() monitoringService {
+	mConfig := monitoringConfiguration{
+		MonitoringService: "", // Noop service
+	}
+	mService, _ := mConfig.init(mux.NewRouter())
+	return mService
+}
+
 func TestParseConfig(t *testing.T) {
 	testConfig, _ := os.Open("testdata/pipelines/config.json")
 	testData, _ := ioutil.ReadAll(testConfig)
@@ -103,7 +112,8 @@ func TestNewPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating Pipeline Manager: %s", err)
 	}
-	_, err = pManager.NewPipeline(makePipeline(basicRuleConfig, "newPipeline.db"))
+
+	_, err = pManager.NewPipeline(makePipeline(basicRuleConfig, "newPipeline.db"), makeMonitoringService())
 	if err != nil {
 		t.Errorf("Error creating new pipeline: %s", err)
 	}
@@ -209,7 +219,7 @@ func TestStartBasicPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating Pipeline Manager: %s", err)
 	}
-	p, err := pManager.NewPipeline(makePipeline(basicRuleConfig, "basicPipeline.db"))
+	p, err := pManager.NewPipeline(makePipeline(basicRuleConfig, "basicPipeline.db"), makeMonitoringService())
 	if err != nil {
 		t.Fatalf("Error creating new pipeline: %s", err)
 	}
@@ -236,7 +246,7 @@ func TestStartForwardPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating Pipeline Manager: %s", err)
 	}
-	p, err := pManager.NewPipeline(makePipeline(pipelineRuleConfig, "forwardPipeline.db"))
+	p, err := pManager.NewPipeline(makePipeline(pipelineRuleConfig, "forwardPipeline.db"), makeMonitoringService())
 	if err != nil {
 		t.Fatalf("Error creating new pipeline: %s", err)
 	}

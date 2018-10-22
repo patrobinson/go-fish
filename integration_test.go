@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/patrobinson/go-fish/input"
 	"github.com/patrobinson/go-fish/output"
 	log "github.com/sirupsen/logrus"
@@ -91,7 +92,11 @@ func setupPipeline(source input.Source, sink output.Sink, config []byte, databas
 	if err != nil {
 		return nil, err
 	}
-	p, err := pManager.NewPipeline(config)
+	mConfig := monitoringConfiguration{
+		MonitoringService: "", // Noop service
+	}
+	mService, _ := mConfig.init(mux.NewRouter())
+	p, err := pManager.NewPipeline(config, mService)
 	if err != nil {
 		return nil, err
 	}
