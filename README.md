@@ -5,7 +5,7 @@ Go Fish is a stream processor built in Golang. It provides the capability to wri
 Go Fish seeks to implement similar functionality to Apache Samza, without tight coupling to Kafka or YARN. Currently it implements reading streams, writing output events and state management. Future versions may include Checkpointing, Windowing, Metrics and a cluster implementation to co-ordinate message routing between nodes.
 
 
-**Development Status**: Ready for alpha testing
+**Development Status**: No longer in active development. [Benthos](https://github.com/Jeffail/benthos) is an excellent alternative.
 
 
 ## Project Goals
